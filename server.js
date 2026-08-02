@@ -5,6 +5,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const {
   logTransaction,
   getTodaySummary,
+  getTransactionHistory,
   createDebt,
   getDebts,
   payDebt,
@@ -23,21 +24,24 @@ app.get("/health", (req, res) => {
 });
 
 app.post("/parse", async (req, res) => {
-  const { message } = req.body;
+  const { message, language = "english" } = req.body;
+  const isPidgin = language === "pidgin";
 
   const prompt = `
 You are MarketMind, a business assistant for Nigerian market traders.
 Read the trader's message and extract transaction data.
+${isPidgin ? "Respond naturally, as a Nigerian Pidgin speaker would." : ""}
 
 Respond with ONLY valid JSON, no other text, in this exact format:
 {
   "type": "sale" or "expense",
   "item": "item name",
-  "amount": number
+  "amount": number,
+  "reply": "short natural-language confirmation"
 }
 
 If the message is not a transaction, respond with:
-{"type": null, "item": null, "amount": null}
+{"type": null, "item": null, "amount": null, "reply": "short natural-language confirmation"}
 
 Trader's message: "${message}"
 `;
@@ -53,7 +57,7 @@ Trader's message: "${message}"
     for (let i = matches.length - 1; i >= 0; i--) {
       try {
         const candidate = JSON.parse(matches[i][0]);
-        if ("type" in candidate) {
+        if ("type" in candidate && "reply" in candidate) {
           parsed = candidate;
           break;
         }
@@ -80,6 +84,11 @@ Trader's message: "${message}"
 
 app.get("/summary", (req, res) => {
   res.json(getTodaySummary());
+});
+
+app.get("/transactions", (req, res) => {
+  const limit = Number(req.query.limit) || 50;
+  res.json(getTransactionHistory(limit));
 });
 
 app.post("/debts", (req, res) => {

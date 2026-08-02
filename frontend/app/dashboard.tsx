@@ -138,6 +138,22 @@ export default function DashboardScreen() {
           </Pressable>
           <Text style={styles.micLabel}>Tap to Speak</Text>
         </View>
+
+        <View style={styles.linksRow}>
+          <Pressable
+            style={styles.debtsLink}
+            onPress={() => router.push("/debts")}
+          >
+            <Text style={styles.debtsLinkText}>Debts</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.debtsLink}
+            onPress={() => router.push("/history")}
+          >
+            <Text style={styles.debtsLinkText}>History</Text>
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -244,5 +260,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: textAccent,
+  },
+  linksRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 16,
+  },
+  debtsLink: {
+    alignSelf: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#EAF4EC",
+  },
+  debtsLinkText: {
+    color: textAccent,
+    fontWeight: "700",
+    fontSize: 14,
   },
 });

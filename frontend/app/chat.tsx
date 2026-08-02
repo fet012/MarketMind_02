@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -27,6 +28,7 @@ type ParseResponse = {
   type?: string | null;
   item?: string | null;
   amount?: number | null;
+  reply?: string | null;
   error?: string;
 };
 
@@ -43,6 +45,10 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(false);
 
   const buildReply = (data: ParseResponse) => {
+    if (data.reply) {
+      return data.reply;
+    }
+
     if (data.error) {
       return "Sorry, I didn't understand that — try again";
     }
@@ -84,10 +90,15 @@ export default function ChatScreen() {
     setLoading(true);
 
     try {
+      const storedUser = await AsyncStorage.getItem("marketmind_user");
+      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+      const language = parsedUser?.language === "pidgin" ? "pidgin" : "english";
+
       const response = await axios.post<ParseResponse>(
         "http://localhost:3000/parse",
         {
           message: userMessage,
+          language,
         },
       );
 
@@ -118,7 +129,10 @@ export default function ChatScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Pressable
+            onPress={() => router.replace("/dashboard")}
+            style={styles.backButton}
+          >
             <Text style={styles.backText}>← Back</Text>
           </Pressable>
           <Text style={styles.headerTitle}>MarketMind Chat</Text>

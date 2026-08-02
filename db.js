@@ -61,6 +61,19 @@ function getTodaySummary() {
   };
 }
 
+function getTransactionHistory(limit = 50) {
+  return db
+    .prepare(
+      `
+    SELECT *
+    FROM transactions
+    ORDER BY created_at DESC
+    LIMIT ?
+  `,
+    )
+    .all(limit);
+}
+
 function createDebt(debtorName, item, amount) {
   const stmt = db.prepare(`
     INSERT INTO debts (debtor_name, item, original_amount, remaining_amount)
@@ -142,6 +155,7 @@ module.exports = {
   db,
   logTransaction,
   getTodaySummary,
+  getTransactionHistory,
   createDebt,
   getDebts,
   payDebt,
