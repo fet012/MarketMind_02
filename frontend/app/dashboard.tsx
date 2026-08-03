@@ -85,11 +85,18 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.greeting}>
-            {greeting}, {user.name}
-          </Text>
-          <Text style={styles.subheading}>Here is your trading overview.</Text>
+        <View style={styles.headerCard}>
+          <View>
+            <Text style={styles.greeting}>
+              {greeting}, {user.name}
+            </Text>
+            <Text style={styles.subheading}>
+              Here is your trading overview.
+            </Text>
+          </View>
+          <View style={styles.pillBadge}>
+            <Text style={styles.pillText}>Live insights</Text>
+          </View>
         </View>
 
         <View style={styles.summaryCard}>
@@ -136,22 +143,24 @@ export default function DashboardScreen() {
               <Text style={styles.micIcon}>🎤</Text>
             </View>
           </Pressable>
-          <Text style={styles.micLabel}>Tap to Speak</Text>
+          <Text style={styles.micLabel}>Tap to speak with MarketMind</Text>
         </View>
 
         <View style={styles.linksRow}>
           <Pressable
-            style={styles.debtsLink}
+            style={styles.actionCard}
             onPress={() => router.push("/debts")}
           >
-            <Text style={styles.debtsLinkText}>Debts</Text>
+            <Text style={styles.actionTitle}>Debts</Text>
+            <Text style={styles.actionSubtitle}>Track what&apos;s owed</Text>
           </Pressable>
 
           <Pressable
-            style={styles.debtsLink}
+            style={styles.actionCard}
             onPress={() => router.push("/history")}
           >
-            <Text style={styles.debtsLinkText}>History</Text>
+            <Text style={styles.actionTitle}>History</Text>
+            <Text style={styles.actionSubtitle}>Review recent activity</Text>
           </Pressable>
         </View>
       </View>
@@ -170,23 +179,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 24,
   },
-  header: {
-    marginBottom: 24,
+  headerCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#EADFCF",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   greeting: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "700",
     color: textAccent,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   subheading: {
-    fontSize: 15,
+    fontSize: 14,
     color: "#4E6556",
+  },
+  pillBadge: {
+    backgroundColor: "#F7F0E4",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  pillText: {
+    color: textAccent,
+    fontSize: 12,
+    fontWeight: "700",
   },
   summaryCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
     padding: 18,
+    borderWidth: 1,
+    borderColor: "#EADFCF",
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 10,
@@ -229,6 +264,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingVertical: 16,
   },
   micButton: {
     width: 150,
@@ -244,9 +280,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   micInner: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 118,
+    height: 118,
+    borderRadius: 59,
     borderWidth: 2,
     borderColor: "#FFFFFFCC",
     alignItems: "center",
@@ -257,7 +293,7 @@ const styles = StyleSheet.create({
   },
   micLabel: {
     marginTop: 16,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     color: textAccent,
   },
@@ -265,18 +301,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     gap: 10,
-    marginTop: 16,
+    marginTop: 8,
   },
-  debtsLink: {
-    alignSelf: "center",
+  actionCard: {
+    flex: 1,
+    alignItems: "flex-start",
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "#EAF4EC",
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#EADFCF",
   },
-  debtsLinkText: {
+  actionTitle: {
     color: textAccent,
     fontWeight: "700",
     fontSize: 14,
+  },
+  actionSubtitle: {
+    color: "#6E7C70",
+    fontSize: 12,
+    marginTop: 2,
   },
 });

@@ -28,11 +28,105 @@ db.exec(`
 `);
 
 function logTransaction(type, item, amount) {
+  const normalizedType = type === "sale" || type === "expense" ? type : null;
+  const normalizedItem = typeof item === "string" ? item.trim() : "";
+  const normalizedAmount = Number(amount);
+
+  if (!normalizedType) {
+    throw new Error("type must be sale or expense");
+  }
+
+  if (!normalizedItem) {
+    throw new Error("item is required");
+  }
+
+  if (Number.isNaN(normalizedAmount) || normalizedAmount < 0) {
+    throw new Error("amount must be a non-negative number");
+  }
+
   const stmt = db.prepare(
     "INSERT INTO transactions (type, item, amount) VALUES (?, ?, ?)",
   );
-  const result = stmt.run(type, item, amount);
+  const result = stmt.run(normalizedType, normalizedItem, normalizedAmount);
   return result.lastInsertRowid;
+}
+
+function getTransactionById(transactionId) {
+  return db
+    .prepare(
+      `
+    SELECT *
+    FROM transactions
+    WHERE id = ?
+  `,
+    )
+    .get(transactionId);
+}
+
+function updateTransaction(transactionId, fields = {}) {
+  const existing = getTransactionById(transactionId);
+
+  if (!existing) {
+    throw new Error("Transaction not found");
+  }
+
+  const updates = [];
+  const values = [];
+
+  if (fields.type !== undefined) {
+    const normalizedType =
+      fields.type === "sale" || fields.type === "expense" ? fields.type : null;
+    if (!normalizedType) {
+      throw new Error("type must be sale or expense");
+    }
+    updates.push("type = ?");
+    values.push(normalizedType);
+  }
+
+  if (fields.item !== undefined) {
+    const normalizedItem =
+      typeof fields.item === "string" ? fields.item.trim() : "";
+    if (!normalizedItem) {
+      throw new Error("item is required");
+    }
+    updates.push("item = ?");
+    values.push(normalizedItem);
+  }
+
+  if (fields.amount !== undefined) {
+    const normalizedAmount = Number(fields.amount);
+    if (Number.isNaN(normalizedAmount) || normalizedAmount < 0) {
+      throw new Error("amount must be a non-negative number");
+    }
+    updates.push("amount = ?");
+    values.push(normalizedAmount);
+  }
+
+  if (updates.length === 0) {
+    return existing;
+  }
+
+  values.push(transactionId);
+  db.prepare(
+    `
+    UPDATE transactions
+    SET ${updates.join(", ")}
+    WHERE id = ?
+  `,
+  ).run(...values);
+
+  return getTransactionById(transactionId);
+}
+
+function deleteTransaction(transactionId) {
+  const existing = getTransactionById(transactionId);
+
+  if (!existing) {
+    throw new Error("Transaction not found");
+  }
+
+  db.prepare("DELETE FROM transactions WHERE id = ?").run(transactionId);
+  return existing;
 }
 
 function getTodaySummary() {
@@ -72,6 +166,59 @@ function getTransactionHistory(limit = 50) {
   `,
     )
     .all(limit);
+}
+
+function getSalesByItem() {
+  return db
+    .prepare(
+      `
+    SELECT item, SUM(amount) as total_amount
+    FROM transactions
+    WHERE type = 'sale'
+    GROUP BY item
+    ORDER BY total_amount DESC, item ASC
+  `,
+    )
+    .all();
+}
+
+function getExpensesByItem() {
+  return db
+    .prepare(
+      `
+    SELECT item, SUM(amount) as total_amount
+    FROM transactions
+    WHERE type = 'expense'
+    GROUP BY item
+    ORDER BY total_amount DESC, item ASC
+  `,
+    )
+    .all();
+}
+
+function getRecentTransactions(limit = 10) {
+  return db
+    .prepare(
+      `
+    SELECT id, type, item, amount, created_at
+    FROM transactions
+    ORDER BY created_at DESC
+    LIMIT ?
+  `,
+    )
+    .all(limit);
+}
+
+function getDebtSummary() {
+  return db
+    .prepare(
+      `
+    SELECT debtor_name, item, remaining_amount, is_paid
+    FROM debts
+    ORDER BY created_at DESC
+  `,
+    )
+    .all();
 }
 
 function createDebt(debtorName, item, amount) {
@@ -154,8 +301,15 @@ function payDebt(debtId, paymentAmount) {
 module.exports = {
   db,
   logTransaction,
+  getTransactionById,
+  updateTransaction,
+  deleteTransaction,
   getTodaySummary,
   getTransactionHistory,
+  getSalesByItem,
+  getExpensesByItem,
+  getRecentTransactions,
+  getDebtSummary,
   createDebt,
   getDebts,
   payDebt,

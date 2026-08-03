@@ -1,11 +1,21 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const axios = require("axios");
+const multer = require("multer");
+const FormData = require("form-data");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const {
   logTransaction,
+  getTransactionById,
+  updateTransaction,
+  deleteTransaction,
   getTodaySummary,
   getTransactionHistory,
+  getSalesByItem,
+  getExpensesByItem,
+  getRecentTransactions,
+  getDebtSummary,
   createDebt,
   getDebts,
   payDebt,
@@ -16,15 +26,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const upload = multer({ storage: multer.memoryStorage() });
+
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemma-4-26b-a4b-it" });
 
-app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
-});
-
-app.post("/parse", async (req, res) => {
-  const { message, language = "english" } = req.body;
+async function parseUserMessage(message, language = "english") {
   const isPidgin = language === "pidgin";
 
   const prompt = `
@@ -46,33 +53,50 @@ If the message is not a transaction, respond with:
 Trader's message: "${message}"
 `;
 
-  try {
-    const result = await model.generateContent(prompt);
-    const raw = result.response.text().trim();
-    console.log("[Gemma raw response]:", raw);
+  const result = await model.generateContent(prompt);
+  const raw = result.response.text().trim();
+  console.log("[Gemma raw response]:", raw);
 
-    const matches = [...raw.matchAll(/\{[^{}]*\}/g)];
-    let parsed = null;
+  const matches = [...raw.matchAll(/\{[^{}]*\}/g)];
+  let parsed = null;
 
-    for (let i = matches.length - 1; i >= 0; i--) {
-      try {
-        const candidate = JSON.parse(matches[i][0]);
-        if ("type" in candidate && "reply" in candidate) {
-          parsed = candidate;
-          break;
-        }
-      } catch (e) {
-        continue;
+  for (let i = matches.length - 1; i >= 0; i--) {
+    try {
+      const candidate = JSON.parse(matches[i][0]);
+      if ("type" in candidate && "reply" in candidate) {
+        parsed = candidate;
+        break;
       }
+    } catch (e) {
+      continue;
     }
+  }
+
+  if (!parsed) {
+    return { parsed: null, raw };
+  }
+
+  if (parsed.type && parsed.item && parsed.amount) {
+    logTransaction(parsed.type, parsed.item, parsed.amount);
+  }
+
+  return { parsed, raw };
+}
+
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.post("/parse", async (req, res) => {
+  const { message, language = "english" } = req.body;
+
+  try {
+    const { parsed, raw } = await parseUserMessage(message, language);
 
     if (!parsed) {
       return res
         .status(422)
         .json({ error: "Could not extract valid JSON", raw });
-    }
-    if (parsed.type && parsed.item && parsed.amount) {
-      logTransaction(parsed.type, parsed.item, parsed.amount);
     }
 
     res.json(parsed);
@@ -82,13 +106,155 @@ Trader's message: "${message}"
   }
 });
 
+app.post("/voice", upload.single("audio"), async (req, res) => {
+  const language = req.body?.language || req.query?.language || "english";
+
+  if (!req.file) {
+    return res.status(400).json({ error: "audio file is required" });
+  }
+
+  try {
+    const form = new FormData();
+    form.append("audio", req.file.buffer, {
+      filename: req.file.originalname || "audio.wav",
+      contentType: req.file.mimetype || "audio/wav",
+      knownLength: req.file.buffer.length,
+    });
+
+    const sttResponse = await axios.post(
+      "http://localhost:8001/transcribe",
+      form,
+      {
+        headers: form.getHeaders(),
+      },
+    );
+
+    const text = sttResponse?.data?.text || "";
+    if (!text) {
+      return res
+        .status(422)
+        .json({ error: "No transcript returned", text: "" });
+    }
+
+    const { parsed, raw } = await parseUserMessage(text, language);
+    if (!parsed) {
+      return res
+        .status(422)
+        .json({ error: "Could not extract valid JSON", raw, text });
+    }
+
+    res.json({ ...parsed, text });
+  } catch (error) {
+    console.error(error);
+    const status = error.response?.status || 500;
+    const message = error.response?.data?.detail || error.message;
+    res
+      .status(status === 500 ? 502 : status)
+      .json({ error: message, text: "" });
+  }
+});
+
+function buildAskContext() {
+  const summary = getTodaySummary();
+  const salesByItem = getSalesByItem();
+  const expensesByItem = getExpensesByItem();
+  const recentTransactions = getRecentTransactions(10);
+  const debts = getDebtSummary();
+
+  return {
+    summary,
+    salesByItem,
+    expensesByItem,
+    recentTransactions,
+    debts,
+  };
+}
+
+async function answerQuestion(question, language = "english") {
+  const context = buildAskContext();
+  const isPidgin = language === "pidgin";
+
+  const prompt = `
+You are MarketMind, a business assistant for Nigerian market traders.
+Answer the trader's question using ONLY the data provided below.
+${isPidgin ? "Respond naturally, as a Nigerian Pidgin speaker would." : ""}
+
+Important:
+- Do not invent facts.
+- If the data is missing or insufficient, say so clearly.
+- Keep the answer concise and practical.
+
+Context data:
+${JSON.stringify(context, null, 2)}
+
+Question: "${question}"
+`;
+
+  const result = await model.generateContent(prompt);
+  return result.response.text().trim();
+}
+
 app.get("/summary", (req, res) => {
   res.json(getTodaySummary());
+});
+
+app.post("/ask", async (req, res) => {
+  const { question, language = "english" } = req.body;
+
+  if (!question || !question.trim()) {
+    return res.status(400).json({ error: "question is required" });
+  }
+
+  try {
+    const answer = await answerQuestion(question, language);
+    res.json({ answer, context: buildAskContext() });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.get("/transactions", (req, res) => {
   const limit = Number(req.query.limit) || 50;
   res.json(getTransactionHistory(limit));
+});
+
+app.post("/transactions", (req, res) => {
+  try {
+    const { type, item, amount } = req.body;
+    const transactionId = logTransaction(type, item, amount);
+    res.status(201).json(getTransactionById(transactionId));
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.put("/transactions/:id", (req, res) => {
+  const transactionId = Number(req.params.id);
+
+  try {
+    const updated = updateTransaction(transactionId, req.body);
+    res.json(updated);
+  } catch (error) {
+    if (error.message === "Transaction not found") {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.delete("/transactions/:id", (req, res) => {
+  const transactionId = Number(req.params.id);
+
+  try {
+    const removed = deleteTransaction(transactionId);
+    res.json({ success: true, transaction: removed });
+  } catch (error) {
+    if (error.message === "Transaction not found") {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(400).json({ error: error.message });
+  }
 });
 
 app.post("/debts", (req, res) => {
