@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { useState } from "react";
 import * as Crypto from "expo-crypto";
+import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -20,7 +20,30 @@ const textAccent = "#1B6A3A";
 export default function OnboardingScreen() {
   const [name, setName] = useState("");
   const [language, setLanguage] = useState<"English" | "Pidgin">("Pidgin");
+  const [checkingUser, setCheckingUser] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    const checkExistingUser = async () => {
+      const stored = await AsyncStorage.getItem("marketmind_user");
+
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed.userId && parsed.name) {
+            router.replace("/dashboard");
+            return;
+          }
+        } catch {
+          // fall through to show onboarding
+        }
+      }
+
+      setCheckingUser(false);
+    };
+
+    checkExistingUser();
+  }, [router]);
 
   const handleStart = async () => {
     if (!name.trim()) {
@@ -36,6 +59,18 @@ export default function OnboardingScreen() {
 
     router.push("/dashboard");
   };
+ if (checkingUser) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.splashContainer}>
+          <View style={styles.logoCircle}>
+            <Text style={styles.logoText}>MM</Text>
+          </View>
+          <Text style={styles.title}>MarketMind</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -221,5 +256,10 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 16,
+  },
+  splashContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
