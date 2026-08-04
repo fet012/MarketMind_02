@@ -48,7 +48,7 @@ export default function DashboardScreen() {
           return;
         }
 
-      setUser(parsed);
+        setUser(parsed);
         if (parsed.userId) {
           loadSummary(parsed.userId);
         }
@@ -56,7 +56,6 @@ export default function DashboardScreen() {
         router.replace("/");
       }
     };
-    
 
     const loadSummary = async (userId: string) => {
       try {
@@ -204,7 +203,12 @@ export default function DashboardScreen() {
                   />
                 </View>
                 <Text style={styles.summaryLabel}>Profit</Text>
-                <Text style={styles.summaryValue}>
+                <Text
+                  style={[
+                    styles.summaryValue,
+                    (summary?.profit ?? 0) < 0 ? styles.negativeValue : null,
+                  ]}
+                >
                   {loadingSummary
                     ? "..."
                     : formatCurrency(summary?.profit ?? 0)}
@@ -478,5 +482,8 @@ const styles = StyleSheet.create({
     color: "#6E7C70",
     fontSize: 12,
     marginTop: 2,
+  },
+  negativeValue: {
+    color: "#C2410C",
   },
 });
