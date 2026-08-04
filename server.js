@@ -179,6 +179,9 @@ You are MarketMind, a business assistant for Nigerian market traders.
 Answer the trader's question using ONLY the data provided below.
 ${isPidgin ? "Respond naturally, as a Nigerian Pidgin speaker would." : ""}
 
+Return ONLY valid JSON in this exact format:
+{"answer": "short practical answer"}
+
 Important:
 - Do not invent facts.
 - If the data is missing or insufficient, say so clearly.
@@ -191,7 +194,29 @@ Question: "${question}"
 `;
 
   const result = await model.generateContent(prompt);
-  return result.response.text().trim();
+  const raw = result.response.text().trim();
+  console.log("[Gemma ask raw response]:", raw);
+
+  const matches = [...raw.matchAll(/\{[^{}]*\}/g)];
+  let parsed = null;
+
+  for (let i = matches.length - 1; i >= 0; i--) {
+    try {
+      const candidate = JSON.parse(matches[i][0]);
+      if ("answer" in candidate) {
+        parsed = candidate;
+        break;
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+
+  if (!parsed || typeof parsed.answer !== "string") {
+    return "I couldn't find a grounded answer for that.";
+  }
+
+  return parsed.answer;
 }
 
 app.get("/summary", (req, res) => {

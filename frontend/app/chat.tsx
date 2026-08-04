@@ -1,7 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { Audio } from "expo-av";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { MotiView } from "moti";
 import { useState } from "react";
 import {
   Alert,
@@ -103,6 +107,35 @@ export default function ChatScreen() {
     return parsedUser?.language === "pidgin" ? "pidgin" : "english";
   };
 
+  const isLikelyQuestion = (text: string) => {
+    const normalized = text.toLowerCase().trim();
+    if (!normalized) {
+      return false;
+    }
+
+    const questionMarkers = [
+      "who",
+      "what",
+      "when",
+      "where",
+      "why",
+      "how",
+      "which",
+      "can",
+      "should",
+      "could",
+      "would",
+      "maybe",
+      "do",
+      "did",
+      "is",
+      "are",
+      "?",
+    ];
+
+    return questionMarkers.some((marker) => normalized.includes(marker));
+  };
+
   const handleSend = async () => {
     if (!input.trim()) {
       return;
@@ -123,24 +156,7 @@ export default function ChatScreen() {
     try {
       const language = await getLanguagePreference();
 
-      try {
-        const response = await axios.post<ParseResponse>(
-          "http://localhost:3000/parse",
-          {
-            message: userMessage,
-            language,
-          },
-        );
-
-        const assistantReply: ChatMessage = {
-          id: `${Date.now()}-assistant`,
-          role: "assistant",
-          text: buildReply(response.data),
-        };
-
-        setMessages((current) => [...current, assistantReply]);
-        return;
-      } catch (parseError) {
+      if (isLikelyQuestion(userMessage)) {
         const answer = await handleAskQuestion(userMessage, language);
         const assistantReply: ChatMessage = {
           id: `${Date.now()}-assistant`,
@@ -149,7 +165,24 @@ export default function ChatScreen() {
         };
 
         setMessages((current) => [...current, assistantReply]);
+        return;
       }
+
+      const response = await axios.post<ParseResponse>(
+        "http://localhost:3000/parse",
+        {
+          message: userMessage,
+          language,
+        },
+      );
+
+      const assistantReply: ChatMessage = {
+        id: `${Date.now()}-assistant`,
+        role: "assistant",
+        text: buildReply(response.data),
+      };
+
+      setMessages((current) => [...current, assistantReply]);
     } catch {
       const assistantReply: ChatMessage = {
         id: `${Date.now()}-assistant-error`,
@@ -161,6 +194,34 @@ export default function ChatScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getRecordingUploadMetadata = async (uri: string) => {
+    if (Platform.OS === "web") {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const actualMimeType = blob.type || "audio/webm";
+      const extension = actualMimeType.includes("wav")
+        ? "wav"
+        : actualMimeType.includes("webm")
+          ? "webm"
+          : actualMimeType.includes("mp4")
+            ? "mp4"
+            : actualMimeType.includes("m4a")
+              ? "m4a"
+              : actualMimeType.includes("mpeg") ||
+                  actualMimeType.includes("mp3")
+                ? "mp3"
+                : "bin";
+
+      return { actualMimeType, extension, blob };
+    }
+
+    return {
+      actualMimeType: Platform.OS === "ios" ? "audio/m4a" : "audio/mp4",
+      extension: Platform.OS === "ios" ? "m4a" : "mp4",
+      blob: null as Blob | null,
+    };
   };
 
   const handleVoiceToggle = async () => {
@@ -186,42 +247,48 @@ export default function ChatScreen() {
           throw new Error("No audio recorded");
         }
 
+        const recordingMetadata = await getRecordingUploadMetadata(uri);
+        console.log("[voice] recording uri:", uri);
+        console.log(
+          "[voice] recorded blob mime type:",
+          recordingMetadata.actualMimeType,
+        );
+        console.log(
+          "[voice] upload file name:",
+          `voice.${recordingMetadata.extension}`,
+        );
+
         const formData = new FormData();
-        formData.append("audio", {
-          uri,
-          name: "voice.m4a",
-          type: Platform.OS === "ios" ? "audio/m4a" : "audio/mp4",
-        } as any);
+        if (Platform.OS === "web" && recordingMetadata.blob) {
+          formData.append(
+            "audio",
+            recordingMetadata.blob,
+            `voice.${recordingMetadata.extension}`,
+          );
+        } else {
+          formData.append("audio", {
+            uri,
+            name: `voice.${recordingMetadata.extension}`,
+            type: recordingMetadata.actualMimeType,
+          } as any);
+        }
 
         const language = await getLanguagePreference();
+        formData.append("language", language);
+
         const response = await axios.post<ParseResponse & { text?: string }>(
           "http://localhost:3000/voice",
           formData,
-          {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-          },
         );
 
         const transcribedText = response.data.text?.trim();
         if (transcribedText) {
-          const userMessage: ChatMessage = {
-            id: `${Date.now()}-voice-user`,
-            role: "user",
-            text: transcribedText,
-          };
-          setMessages((current) => [...current, userMessage]);
+          setInput(transcribedText);
+          setStatusMessage("Transcription ready — edit and press Send.");
+        } else {
+          setStatusMessage("No text was detected. Please try again.");
         }
-
-        const assistantReply: ChatMessage = {
-          id: `${Date.now()}-voice-assistant`,
-          role: "assistant",
-          text: response.data.reply || buildReply(response.data),
-        };
-
-        setMessages((current) => [...current, assistantReply]);
-      } catch (error) {
+      } catch {
         const assistantReply: ChatMessage = {
           id: `${Date.now()}-voice-error`,
           role: "assistant",
@@ -253,9 +320,17 @@ export default function ChatScreen() {
       });
 
       const newRecording = new Audio.Recording();
-      const recordingOptions =
+      const recordingPreset =
         (Audio as any).RECORDING_OPTIONS_PRESET_HIGH_QUALITY ||
         (Audio as any).RecordingOptionsPresets?.HIGH_QUALITY;
+      const recordingOptions = {
+        ...recordingPreset,
+        web: {
+          ...(recordingPreset?.web ?? {}),
+          mimeType: "audio/webm",
+          bitsPerSecond: 128000,
+        },
+      };
       await newRecording.prepareToRecordAsync(recordingOptions);
       await newRecording.startAsync();
       setRecording(newRecording);
@@ -268,6 +343,13 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LinearGradient
+        colors={["#FCF8EF", "#F7EFD8", "#F4E6C5"]}
+        start={{ x: 0.05, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -277,7 +359,7 @@ export default function ChatScreen() {
             onPress={() => router.replace("/dashboard")}
             style={styles.backButton}
           >
-            <Text style={styles.backText}>← Back</Text>
+            <Ionicons name="chevron-back" size={20} color={textAccent} />
           </Pressable>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>MarketMind Chat</Text>
@@ -293,14 +375,24 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
         >
           {messages.map((message) => (
-            <View
+            <MotiView
               key={message.id}
+              from={{ opacity: 0, translateY: 10 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: "timing", duration: 220 }}
               style={[
                 styles.messageRow,
                 message.role === "user" ? styles.userRow : styles.assistantRow,
               ]}
             >
-              <View
+              <LinearGradient
+                colors={
+                  message.role === "user"
+                    ? [textAccent, "#347B53"]
+                    : ["rgba(255,255,255,0.9)", "rgba(248,240,225,0.95)"]
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={[
                   styles.messageBubble,
                   message.role === "user"
@@ -318,8 +410,8 @@ export default function ChatScreen() {
                 >
                   {message.text}
                 </Text>
-              </View>
-            </View>
+              </LinearGradient>
+            </MotiView>
           ))}
 
           {loading ? (
@@ -355,12 +447,14 @@ export default function ChatScreen() {
             ]}
             onPress={handleVoiceToggle}
           >
-            <Text style={styles.iconButtonText}>
-              {isRecording ? "■" : "🎙"}
-            </Text>
+            <Ionicons
+              name={isRecording ? "stop-circle" : "mic"}
+              size={18}
+              color={textAccent}
+            />
           </Pressable>
           <Pressable style={styles.sendButton} onPress={handleSend}>
-            <Text style={styles.sendButtonText}>Send</Text>
+            <Ionicons name="send" size={18} color="#FFFDF7" />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -371,11 +465,11 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: backgroundColor,
+    backgroundColor,
   },
   container: {
     flex: 1,
-    backgroundColor: backgroundColor,
+    backgroundColor: "transparent",
   },
   headerCard: {
     flexDirection: "row",
@@ -384,25 +478,20 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginHorizontal: 12,
     marginTop: 8,
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.78)",
     borderWidth: 1,
-    borderColor: "#EADFCF",
+    borderColor: "rgba(27,106,58,0.12)",
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   backButton: {
     marginRight: 12,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     paddingVertical: 4,
-  },
-  backText: {
-    color: textAccent,
-    fontWeight: "600",
-    fontSize: 15,
   },
   headerContent: {
     flex: 1,
@@ -436,28 +525,27 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   messageBubble: {
-    maxWidth: "80%",
+    maxWidth: "82%",
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 16,
+    paddingVertical: 11,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#E7E0D8",
+    borderColor: "rgba(27,106,58,0.14)",
     shadowColor: "#000",
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   userBubble: {
-    backgroundColor: textAccent,
+    borderColor: "rgba(255,255,255,0.2)",
   },
   assistantBubble: {
-    backgroundColor: "#FFFDF7",
-    borderColor: primaryAccent,
+    backgroundColor: "transparent",
   },
   messageText: {
     fontSize: 15,
-    lineHeight: 20,
+    lineHeight: 21,
   },
   userText: {
     color: "#FFFFFF",
@@ -477,24 +565,24 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: "row",
     alignItems: "flex-end",
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 10,
     marginHorizontal: 10,
     marginBottom: 10,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.9)",
     borderWidth: 1,
-    borderColor: "#EADFCF",
+    borderColor: "rgba(27,106,58,0.12)",
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   input: {
     flex: 1,
     backgroundColor: "#FFFDF7",
-    borderRadius: 14,
+    borderRadius: 15,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginRight: 8,
@@ -515,23 +603,20 @@ const styles = StyleSheet.create({
     borderColor: "#EADFCF",
   },
   recordingButton: {
-    backgroundColor: "#FFE7E7",
+    backgroundColor: "#FFE9E2",
     borderColor: primaryAccent,
-  },
-  iconButtonText: {
-    fontSize: 18,
   },
   sendButton: {
     backgroundColor: primaryAccent,
     borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    width: 44,
+    height: 44,
     justifyContent: "center",
-    minWidth: 64,
     alignItems: "center",
-  },
-  sendButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
 });

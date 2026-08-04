@@ -1,5 +1,8 @@
+import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { MotiView } from "moti";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -23,6 +26,11 @@ type Transaction = {
   item: string;
   amount: number;
   created_at: string;
+};
+
+type GroupedTransactions = {
+  label: string;
+  transactions: Transaction[];
 };
 
 export default function HistoryScreen() {
@@ -63,7 +71,10 @@ export default function HistoryScreen() {
   }, []);
 
   const formatTimestamp = (value: string) => {
-    const date = new Date(value);
+    const normalizedValue = value.includes(" ")
+      ? value.replace(" ", "T") + "Z"
+      : value;
+    const date = new Date(normalizedValue);
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
 
@@ -83,6 +94,58 @@ export default function HistoryScreen() {
   };
 
   const formatCurrency = (value: number) => `₦${value.toLocaleString()}`;
+
+  const groupedTransactions = useMemo(() => {
+    const groups: GroupedTransactions[] = [];
+    const byDay = new Map<string, Transaction[]>();
+
+    transactions.forEach((transaction) => {
+      const date = new Date(transaction.created_at);
+      const dayKey = date.toDateString();
+      const existing = byDay.get(dayKey);
+      if (existing) {
+        existing.push(transaction);
+      } else {
+        byDay.set(dayKey, [transaction]);
+      }
+    });
+
+    const sortedDays = Array.from(byDay.keys()).sort((a, b) => {
+      return new Date(b).getTime() - new Date(a).getTime();
+    });
+
+    sortedDays.forEach((dayKey) => {
+      const dayTransactions = byDay.get(dayKey) || [];
+      const date = new Date(dayKey);
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      const isYesterday = date.toDateString() === yesterday.toDateString();
+
+      let label = date.toLocaleDateString([], {
+        month: "short",
+        day: "numeric",
+      });
+
+      if (isToday) {
+        label = "Today";
+      } else if (isYesterday) {
+        label = "Yesterday";
+      }
+
+      groups.push({
+        label,
+        transactions: dayTransactions.sort((a, b) => {
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        }),
+      });
+    });
+
+    return groups;
+  }, [transactions]);
 
   const summaryTitle = useMemo(() => {
     return transactions.length === 0
@@ -167,13 +230,20 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LinearGradient
+        colors={["#FCF8EF", "#F7EFD8", "#F4E6C5"]}
+        start={{ x: 0.05, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
       <View style={styles.container}>
         <View style={styles.headerRow}>
           <Pressable
             onPress={() => router.replace("/dashboard")}
             style={styles.backButton}
           >
-            <Text style={styles.backText}>← Back</Text>
+            <Ionicons name="chevron-back" size={20} color={textAccent} />
           </Pressable>
           <Text style={styles.title}>History</Text>
         </View>
@@ -195,6 +265,11 @@ export default function HistoryScreen() {
               ]}
               onPress={() => setFormType("sale")}
             >
+              <Ionicons
+                name="trending-up-outline"
+                size={14}
+                color={formType === "sale" ? "#FFFDF7" : textAccent}
+              />
               <Text
                 style={
                   formType === "sale"
@@ -213,6 +288,11 @@ export default function HistoryScreen() {
               ]}
               onPress={() => setFormType("expense")}
             >
+              <Ionicons
+                name="trending-down-outline"
+                size={14}
+                color={formType === "expense" ? "#FFFDF7" : textAccent}
+              />
               <Text
                 style={
                   formType === "expense"
@@ -278,49 +358,96 @@ export default function HistoryScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
           >
-            {transactions.map((transaction) => (
-              <View key={transaction.id} style={styles.card}>
-                <View style={styles.cardTop}>
-                  <View style={styles.itemWrap}>
-                    <Text style={styles.itemName}>{transaction.item}</Text>
-                    <Text style={styles.timestamp}>
-                      {formatTimestamp(transaction.created_at)}
-                    </Text>
-                  </View>
-                  <View style={styles.amountColumn}>
-                    <Text
-                      style={[
-                        styles.amount,
-                        transaction.type === "expense"
-                          ? styles.expenseText
-                          : styles.saleText,
-                      ]}
-                    >
-                      {transaction.type === "expense" ? "-" : "+"}
-                      {formatCurrency(transaction.amount)}
-                    </Text>
-                    <View style={styles.typeBadge}>
-                      <Text style={styles.typeBadgeText}>
-                        {transaction.type === "expense" ? "Expense" : "Sale"}
-                      </Text>
+            {groupedTransactions.map((group) => (
+              <View key={group.label} style={styles.section}>
+                <Text style={styles.sectionTitle}>{group.label}</Text>
+                {group.transactions.map((transaction) => (
+                  <MotiView
+                    key={transaction.id}
+                    from={{ opacity: 0, translateY: 8 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: "timing", duration: 220 }}
+                    style={styles.card}
+                  >
+                    <View style={styles.cardTop}>
+                      <View style={styles.itemWrap}>
+                        <View style={styles.titleRow}>
+                          <View
+                            style={[
+                              styles.iconBadge,
+                              transaction.type === "expense"
+                                ? styles.expenseBadge
+                                : styles.saleBadge,
+                            ]}
+                          >
+                            <Ionicons
+                              name={
+                                transaction.type === "expense"
+                                  ? "trending-down-outline"
+                                  : "trending-up-outline"
+                              }
+                              size={15}
+                              color={textAccent}
+                            />
+                          </View>
+                          <View style={styles.itemCopy}>
+                            <Text style={styles.itemName}>
+                              {transaction.item}
+                            </Text>
+                            <Text style={styles.timestamp}>
+                              {formatTimestamp(transaction.created_at)}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                      <View style={styles.amountColumn}>
+                        <Text
+                          style={[
+                            styles.amount,
+                            transaction.type === "expense"
+                              ? styles.expenseText
+                              : styles.saleText,
+                          ]}
+                        >
+                          {transaction.type === "expense" ? "-" : "+"}
+                          {formatCurrency(transaction.amount)}
+                        </Text>
+                        <View style={styles.typeBadge}>
+                          <Text style={styles.typeBadgeText}>
+                            {transaction.type === "expense"
+                              ? "Expense"
+                              : "Sale"}
+                          </Text>
+                        </View>
+                      </View>
                     </View>
-                  </View>
-                </View>
 
-                <View style={styles.cardActions}>
-                  <Pressable
-                    style={styles.actionButton}
-                    onPress={() => handleEdit(transaction)}
-                  >
-                    <Text style={styles.actionButtonText}>Edit</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.actionButton, styles.deleteButton]}
-                    onPress={() => handleDelete(transaction.id)}
-                  >
-                    <Text style={styles.actionButtonText}>Delete</Text>
-                  </Pressable>
-                </View>
+                    <View style={styles.cardActions}>
+                      <Pressable
+                        style={styles.actionButton}
+                        onPress={() => handleEdit(transaction)}
+                      >
+                        <Ionicons
+                          name="create-outline"
+                          size={14}
+                          color={textAccent}
+                        />
+                        <Text style={styles.actionButtonText}>Edit</Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.actionButton, styles.deleteButton]}
+                        onPress={() => handleDelete(transaction.id)}
+                      >
+                        <Ionicons
+                          name="trash-outline"
+                          size={14}
+                          color={textAccent}
+                        />
+                        <Text style={styles.actionButtonText}>Delete</Text>
+                      </Pressable>
+                    </View>
+                  </MotiView>
+                ))}
               </View>
             ))}
           </ScrollView>
@@ -333,26 +460,28 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: backgroundColor,
+    backgroundColor,
   },
   container: {
     flex: 1,
-    backgroundColor: backgroundColor,
     paddingHorizontal: 18,
     paddingVertical: 16,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   backButton: {
     marginRight: 10,
-  },
-  backText: {
-    color: textAccent,
-    fontWeight: "600",
-    fontSize: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.75)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(27,106,58,0.12)",
   },
   title: {
     fontSize: 20,
@@ -366,12 +495,17 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   formCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderRadius: 20,
     padding: 14,
     borderWidth: 1,
-    borderColor: "#EADFCF",
+    borderColor: "rgba(27,106,58,0.12)",
     marginBottom: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   formTitle: {
     fontSize: 16,
@@ -390,18 +524,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   typeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "#E7E0D8",
+    backgroundColor: "#FFFDF7",
   },
   activeChip: {
     backgroundColor: textAccent,
     borderColor: textAccent,
   },
   activeChipText: {
-    color: "#FFFFFF",
+    color: "#FFFDF7",
     fontWeight: "700",
     fontSize: 13,
   },
@@ -451,12 +589,27 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingBottom: 20,
   },
+  section: {
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: textAccent,
+    marginTop: 4,
+    marginBottom: 2,
+  },
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.82)",
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: "#E7E0D8",
+    borderColor: "rgba(27,106,58,0.12)",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   cardTop: {
     flexDirection: "row",
@@ -466,6 +619,28 @@ const styles = StyleSheet.create({
   itemWrap: {
     flex: 1,
     marginRight: 8,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  iconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+    backgroundColor: "#F7F0E4",
+  },
+  saleBadge: {
+    backgroundColor: "#EAF4EC",
+  },
+  expenseBadge: {
+    backgroundColor: "#FDECEC",
+  },
+  itemCopy: {
+    flex: 1,
   },
   itemName: {
     fontSize: 15,
@@ -503,6 +678,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: "#EAF4EC",
     paddingHorizontal: 10,
     paddingVertical: 6,
