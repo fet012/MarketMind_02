@@ -3,6 +3,7 @@ import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Modal,
   Pressable,
@@ -40,10 +41,23 @@ export default function DebtsScreen() {
   const [amount, setAmount] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
 
+  const getUserId = async () => {
+    const stored = await AsyncStorage.getItem("marketmind_user");
+    const parsed = stored ? JSON.parse(stored) : null;
+    return parsed?.userId as string | undefined;
+  };
+
   const fetchDebts = async () => {
     try {
       setLoading(true);
-      const response = await axios.get<Debt[]>("http://localhost:3000/debts");
+      const userId = await getUserId();
+      if (!userId) {
+        setDebts([]);
+        return;
+      }
+      const response = await axios.get<Debt[]>(
+        `http://localhost:3000/debts?userId=${userId}`,
+      );
       setDebts(response.data);
     } catch {
       setDebts([]);
@@ -62,10 +76,14 @@ export default function DebtsScreen() {
     }
 
     try {
+      const userId = await getUserId();
+      if (!userId) return;
+
       await axios.post("http://localhost:3000/debts", {
         debtorName: debtorName.trim(),
         item: item.trim(),
         amount: Number(amount),
+        userId,
       });
       setDebtorName("");
       setItem("");
@@ -83,8 +101,12 @@ export default function DebtsScreen() {
     }
 
     try {
+      const userId = await getUserId();
+      if (!userId) return;
+
       await axios.post(`http://localhost:3000/debts/${selectedDebtId}/pay`, {
         amount: Number(paymentAmount),
+        userId,
       });
       setPaymentAmount("");
       setSelectedDebtId(null);
@@ -162,7 +184,9 @@ export default function DebtsScreen() {
           <View style={styles.heroMetrics}>
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Outstanding</Text>
-              <Text style={styles.metricValue}>{formatCurrency(outstandingTotal)}</Text>
+              <Text style={styles.metricValue}>
+                {formatCurrency(outstandingTotal)}
+              </Text>
             </View>
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Open</Text>
@@ -187,7 +211,11 @@ export default function DebtsScreen() {
             {debts.map((debt) => (
               <View key={debt.id} style={styles.debtCard}>
                 <View style={styles.debtIconWrap}>
-                  <Ionicons name="receipt-outline" size={18} color={textAccent} />
+                  <Ionicons
+                    name="receipt-outline"
+                    size={18}
+                    color={textAccent}
+                  />
                 </View>
                 <View style={styles.debtTopRow}>
                   <View style={styles.debtTextWrap}>
@@ -216,7 +244,11 @@ export default function DebtsScreen() {
                     setShowPayModal(true);
                   }}
                 >
-                  <Ionicons name="arrow-forward-outline" size={15} color={textAccent} />
+                  <Ionicons
+                    name="arrow-forward-outline"
+                    size={15}
+                    color={textAccent}
+                  />
                   <Text style={styles.secondaryButtonText}>Record Payment</Text>
                 </Pressable>
               </View>
@@ -563,4 +595,3 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
-   

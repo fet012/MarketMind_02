@@ -14,6 +14,7 @@ const textAccent = "#1B6A3A";
 const warmGlow = "#FDECCF";
 
 type UserData = {
+  userId?: string;
   name?: string;
   language?: string;
 };
@@ -47,18 +48,22 @@ export default function DashboardScreen() {
           return;
         }
 
-        setUser(parsed);
+      setUser(parsed);
+        if (parsed.userId) {
+          loadSummary(parsed.userId);
+        }
       } catch {
         router.replace("/");
       }
     };
+    
 
-    const loadSummary = async () => {
+    const loadSummary = async (userId: string) => {
       try {
         setLoadingSummary(true);
         setSummaryError(false);
         const response = await axios.get<SummaryData>(
-          "http://localhost:3000/summary",
+          `http://localhost:3000/summary?userId=${userId}`,
         );
         setSummary(response.data);
       } catch {
@@ -70,7 +75,6 @@ export default function DashboardScreen() {
     };
 
     loadUser();
-    loadSummary();
   }, [router]);
 
   const greeting = useMemo(() => {

@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { MotiView } from "moti";
 import { useEffect, useMemo, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Alert,
   Pressable,
@@ -52,11 +53,22 @@ export default function HistoryScreen() {
     setFormError(null);
   };
 
+  const getUserId = async () => {
+    const stored = await AsyncStorage.getItem("marketmind_user");
+    const parsed = stored ? JSON.parse(stored) : null;
+    return parsed?.userId as string | undefined;
+  };
+
   const loadTransactions = async () => {
     try {
       setLoading(true);
+      const userId = await getUserId();
+      if (!userId) {
+        setTransactions([]);
+        return;
+      }
       const response = await axios.get<Transaction[]>(
-        "http://localhost:3000/transactions",
+        `http://localhost:3000/transactions?userId=${userId}`,
       );
       setTransactions(response.data);
     } catch {
@@ -169,10 +181,17 @@ export default function HistoryScreen() {
     setFormError(null);
 
     try {
+      const userId = await getUserId();
+      if (!userId) {
+        setFormError("Could not identify your profile. Please restart the app.");
+        return;
+      }
+
       const payload = {
         type: formType,
         item: formItem.trim(),
         amount: parsedAmount,
+        userId,
       };
 
       if (editingId !== null) {
@@ -212,8 +231,14 @@ export default function HistoryScreen() {
           style: "destructive",
           onPress: async () => {
             try {
+              const userId = await getUserId();
+              if (!userId) {
+                Alert.alert("Unable to delete", "Missing user profile.");
+                return;
+              }
               await axios.delete(
                 `http://localhost:3000/transactions/${transactionId}`,
+                { data: { userId } },
               );
               if (editingId === transactionId) {
                 resetForm();

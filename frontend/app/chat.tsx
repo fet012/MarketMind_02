@@ -87,12 +87,17 @@ export default function ChatScreen() {
     return "Sorry, I didn't understand that — try again";
   };
 
-  const handleAskQuestion = async (question: string, language: string) => {
+ const handleAskQuestion = async (
+    question: string,
+    language: string,
+    userId: string,
+  ) => {
     const response = await axios.post<AskResponse>(
       "http://localhost:3000/ask",
       {
         question,
         language,
+        userId,
       },
     );
 
@@ -101,10 +106,14 @@ export default function ChatScreen() {
     );
   };
 
-  const getLanguagePreference = async () => {
+ const getUserProfile = async () => {
     const storedUser = await AsyncStorage.getItem("marketmind_user");
     const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-    return parsedUser?.language === "pidgin" ? "pidgin" : "english";
+    return {
+      userId: parsedUser?.userId as string | undefined,
+      language:
+        parsedUser?.language === "pidgin" ? "pidgin" : "english",
+    };
   };
 
   const isLikelyQuestion = (text: string) => {
@@ -154,10 +163,14 @@ export default function ChatScreen() {
     setStatusMessage(null);
 
     try {
-      const language = await getLanguagePreference();
+      const { userId, language } = await getUserProfile();
+
+      if (!userId) {
+        throw new Error("Missing user profile");
+      }
 
       if (isLikelyQuestion(userMessage)) {
-        const answer = await handleAskQuestion(userMessage, language);
+        const answer = await handleAskQuestion(userMessage, language, userId);
         const assistantReply: ChatMessage = {
           id: `${Date.now()}-assistant`,
           role: "assistant",
@@ -173,9 +186,9 @@ export default function ChatScreen() {
         {
           message: userMessage,
           language,
+          userId,
         },
       );
-
       const assistantReply: ChatMessage = {
         id: `${Date.now()}-assistant`,
         role: "assistant",
@@ -273,8 +286,12 @@ export default function ChatScreen() {
           } as any);
         }
 
-        const language = await getLanguagePreference();
+        const { userId, language } = await getUserProfile();
+        if (!userId) {
+          throw new Error("Missing user profile");
+        }
         formData.append("language", language);
+        formData.append("userId", userId);
 
         const response = await axios.post<ParseResponse & { text?: string }>(
           "http://localhost:3000/voice",

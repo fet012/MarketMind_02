@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import * as Crypto from "expo-crypto";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -26,9 +27,11 @@ export default function OnboardingScreen() {
       return;
     }
 
+    const userId = Crypto.randomUUID();
+
     await AsyncStorage.setItem(
       "marketmind_user",
-      JSON.stringify({ name: name.trim(), language }),
+      JSON.stringify({ userId, name: name.trim(), language }),
     );
 
     router.push("/dashboard");
