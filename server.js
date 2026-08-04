@@ -31,7 +31,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemma-4-26b-a4b-it" });
 
-async function parseUserMessage(message, language = "english") {
+async function parseUserMessage(userId, message, language = "english") {
   const isPidgin = language === "pidgin";
 
   const prompt = `
@@ -77,7 +77,7 @@ Trader's message: "${message}"
   }
 
   if (parsed.type && parsed.item && parsed.amount) {
-    logTransaction(parsed.type, parsed.item, parsed.amount);
+    await logTransaction(userId, parsed.type, parsed.item, parsed.amount);
   }
 
   return { parsed, raw };
@@ -88,10 +88,14 @@ app.get("/health", (req, res) => {
 });
 
 app.post("/parse", async (req, res) => {
-  const { message, language = "english" } = req.body;
+  const { message, language = "english", userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
 
   try {
-    const { parsed, raw } = await parseUserMessage(message, language);
+    const { parsed, raw } = await parseUserMessage(userId, message, language);
 
     if (!parsed) {
       return res
@@ -108,6 +112,11 @@ app.post("/parse", async (req, res) => {
 
 app.post("/voice", upload.single("audio"), async (req, res) => {
   const language = req.body?.language || req.query?.language || "english";
+  const userId = req.body?.userId || req.query?.userId;
+
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
 
   if (!req.file) {
     return res.status(400).json({ error: "audio file is required" });
@@ -136,7 +145,7 @@ app.post("/voice", upload.single("audio"), async (req, res) => {
         .json({ error: "No transcript returned", text: "" });
     }
 
-    const { parsed, raw } = await parseUserMessage(text, language);
+    const { parsed, raw } = await parseUserMessage(userId, text, language);
     if (!parsed) {
       return res
         .status(422)
@@ -154,12 +163,12 @@ app.post("/voice", upload.single("audio"), async (req, res) => {
   }
 });
 
-function buildAskContext() {
-  const summary = getTodaySummary();
-  const salesByItem = getSalesByItem();
-  const expensesByItem = getExpensesByItem();
-  const recentTransactions = getRecentTransactions(10);
-  const debts = getDebtSummary();
+async function buildAskContext(userId) {
+  const summary = await getTodaySummary(userId);
+  const salesByItem = await getSalesByItem(userId);
+  const expensesByItem = await getExpensesByItem(userId);
+  const recentTransactions = await getRecentTransactions(userId, 10);
+  const debts = await getDebtSummary(userId);
 
   return {
     summary,
@@ -170,8 +179,8 @@ function buildAskContext() {
   };
 }
 
-async function answerQuestion(question, language = "english") {
-  const context = buildAskContext();
+async function answerQuestion(userId, question, language = "english") {
+  const context = await buildAskContext(userId);
   const isPidgin = language === "pidgin";
 
   const prompt = `
@@ -219,46 +228,67 @@ Question: "${question}"
   return parsed.answer;
 }
 
-app.get("/summary", (req, res) => {
-  res.json(getTodaySummary());
+app.get("/summary", async (req, res) => {
+  const userId = req.query.userId;
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
+  res.json(await getTodaySummary(userId));
 });
 
 app.post("/ask", async (req, res) => {
-  const { question, language = "english" } = req.body;
+  const { question, language = "english", userId } = req.body;
 
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
   if (!question || !question.trim()) {
     return res.status(400).json({ error: "question is required" });
   }
 
   try {
-    const answer = await answerQuestion(question, language);
-    res.json({ answer, context: buildAskContext() });
+    const answer = await answerQuestion(userId, question, language);
+    res.json({ answer, context: await buildAskContext(userId) });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get("/transactions", (req, res) => {
+app.get("/transactions", async (req, res) => {
+  const userId = req.query.userId;
   const limit = Number(req.query.limit) || 50;
-  res.json(getTransactionHistory(limit));
+
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
+
+  res.json(await getTransactionHistory(userId, limit));
 });
 
-app.post("/transactions", (req, res) => {
+app.post("/transactions", async (req, res) => {
   try {
-    const { type, item, amount } = req.body;
-    const transactionId = logTransaction(type, item, amount);
-    res.status(201).json(getTransactionById(transactionId));
+    const { type, item, amount, userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+    const transactionId = await logTransaction(userId, type, item, amount);
+    res.status(201).json(await getTransactionById(userId, transactionId));
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
-app.put("/transactions/:id", (req, res) => {
+app.put("/transactions/:id", async (req, res) => {
   const transactionId = Number(req.params.id);
+  const { userId, ...fields } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
 
   try {
-    const updated = updateTransaction(transactionId, req.body);
+    const updated = await updateTransaction(userId, transactionId, fields);
     res.json(updated);
   } catch (error) {
     if (error.message === "Transaction not found") {
@@ -268,11 +298,16 @@ app.put("/transactions/:id", (req, res) => {
   }
 });
 
-app.delete("/transactions/:id", (req, res) => {
+app.delete("/transactions/:id", async (req, res) => {
   const transactionId = Number(req.params.id);
+  const userId = req.body?.userId || req.query?.userId;
+
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
 
   try {
-    const removed = deleteTransaction(transactionId);
+    const removed = await deleteTransaction(userId, transactionId);
     res.json({ success: true, transaction: removed });
   } catch (error) {
     if (error.message === "Transaction not found") {
@@ -282,9 +317,12 @@ app.delete("/transactions/:id", (req, res) => {
   }
 });
 
-app.post("/debts", (req, res) => {
-  const { debtorName, item, amount } = req.body;
+app.post("/debts", async (req, res) => {
+  const { debtorName, item, amount, userId } = req.body;
 
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
   if (!debtorName || !item || amount === undefined || amount === null) {
     return res
       .status(400)
@@ -292,8 +330,8 @@ app.post("/debts", (req, res) => {
   }
 
   try {
-    const debtId = createDebt(debtorName, item, Number(amount));
-    const debt = getDebtById(debtId);
+    const debtId = await createDebt(userId, debtorName, item, Number(amount));
+    const debt = await getDebtById(userId, debtId);
     res.status(201).json(debt);
   } catch (error) {
     console.error(error);
@@ -301,21 +339,30 @@ app.post("/debts", (req, res) => {
   }
 });
 
-app.get("/debts", (req, res) => {
+app.get("/debts", async (req, res) => {
+  const userId = req.query.userId;
   const includeAll = req.query.includeAll === "true";
-  res.json(getDebts(includeAll));
+
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
+
+  res.json(await getDebts(userId, includeAll));
 });
 
-app.post("/debts/:id/pay", (req, res) => {
+app.post("/debts/:id/pay", async (req, res) => {
   const debtId = Number(req.params.id);
-  const { amount } = req.body;
+  const { amount, userId } = req.body;
 
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
   if (amount === undefined || amount === null) {
     return res.status(400).json({ error: "amount is required" });
   }
 
   try {
-    const updatedDebt = payDebt(debtId, Number(amount));
+    const updatedDebt = await payDebt(userId, debtId, Number(amount));
     res.json(updatedDebt);
   } catch (error) {
     const message = error.message || "Unable to process payment";

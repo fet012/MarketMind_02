@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { MotiView } from "moti";
 import { useEffect, useMemo, useState } from "react";
+import { API_BASE_URL } from "../config";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Alert,
@@ -68,7 +69,7 @@ export default function HistoryScreen() {
         return;
       }
       const response = await axios.get<Transaction[]>(
-        `http://localhost:3000/transactions?userId=${userId}`,
+        `${API_BASE_URL}/transactions?userId=${userId}`,
       );
       setTransactions(response.data);
     } catch {
@@ -196,11 +197,11 @@ export default function HistoryScreen() {
 
       if (editingId !== null) {
         await axios.put(
-          `http://localhost:3000/transactions/${editingId}`,
+          `${API_BASE_URL}/transactions/${editingId}`,
           payload,
         );
       } else {
-        await axios.post("http://localhost:3000/transactions", payload);
+        await axios.post(`${API_BASE_URL}/transactions`, payload);
       }
 
       await loadTransactions();
@@ -237,7 +238,7 @@ export default function HistoryScreen() {
                 return;
               }
               await axios.delete(
-                `http://localhost:3000/transactions/${transactionId}`,
+                `${API_BASE_URL}/transactions/${transactionId}`,
                 { data: { userId } },
               );
               if (editingId === transactionId) {

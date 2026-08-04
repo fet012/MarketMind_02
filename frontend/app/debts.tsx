@@ -3,6 +3,7 @@ import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
+import { API_BASE_URL } from "../config";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Modal,
@@ -56,7 +57,7 @@ export default function DebtsScreen() {
         return;
       }
       const response = await axios.get<Debt[]>(
-        `http://localhost:3000/debts?userId=${userId}`,
+        `${API_BASE_URL}/debts?userId=${userId}`,
       );
       setDebts(response.data);
     } catch {
@@ -79,7 +80,7 @@ export default function DebtsScreen() {
       const userId = await getUserId();
       if (!userId) return;
 
-      await axios.post("http://localhost:3000/debts", {
+      await axios.post(`${API_BASE_URL}/debts`, {
         debtorName: debtorName.trim(),
         item: item.trim(),
         amount: Number(amount),
@@ -104,7 +105,7 @@ export default function DebtsScreen() {
       const userId = await getUserId();
       if (!userId) return;
 
-      await axios.post(`http://localhost:3000/debts/${selectedDebtId}/pay`, {
+      await axios.post(`${API_BASE_URL}/debts/${selectedDebtId}/pay`, {
         amount: Number(paymentAmount),
         userId,
       });

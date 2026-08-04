@@ -6,6 +6,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { MotiView } from "moti";
 import { useEffect, useMemo, useState } from "react";
+import { API_BASE_URL } from "../config";
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
 
 const backgroundColor = "#F9F6F1";
@@ -62,7 +63,7 @@ export default function DashboardScreen() {
         setLoadingSummary(true);
         setSummaryError(false);
         const response = await axios.get<SummaryData>(
-          `http://localhost:3000/summary?userId=${userId}`,
+          `${API_BASE_URL}/summary?userId=${userId}`,
         );
         setSummary(response.data);
       } catch {

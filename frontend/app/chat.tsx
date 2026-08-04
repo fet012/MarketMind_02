@@ -7,6 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { MotiView } from "moti";
 import { useState } from "react";
+import { API_BASE_URL } from "../config";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -87,32 +88,28 @@ export default function ChatScreen() {
     return "Sorry, I didn't understand that — try again";
   };
 
- const handleAskQuestion = async (
+  const handleAskQuestion = async (
     question: string,
     language: string,
     userId: string,
   ) => {
-    const response = await axios.post<AskResponse>(
-      "http://localhost:3000/ask",
-      {
-        question,
-        language,
-        userId,
-      },
-    );
+    const response = await axios.post<AskResponse>(`${API_BASE_URL}/ask`, {
+      question,
+      language,
+      userId,
+    });
 
     return (
       response.data.answer || "I couldn't find a grounded answer for that."
     );
   };
 
- const getUserProfile = async () => {
+  const getUserProfile = async () => {
     const storedUser = await AsyncStorage.getItem("marketmind_user");
     const parsedUser = storedUser ? JSON.parse(storedUser) : null;
     return {
       userId: parsedUser?.userId as string | undefined,
-      language:
-        parsedUser?.language === "pidgin" ? "pidgin" : "english",
+      language: parsedUser?.language === "pidgin" ? "pidgin" : "english",
     };
   };
 
@@ -182,7 +179,7 @@ export default function ChatScreen() {
       }
 
       const response = await axios.post<ParseResponse>(
-        "http://localhost:3000/parse",
+        `${API_BASE_URL}/parse`,
         {
           message: userMessage,
           language,
@@ -294,7 +291,7 @@ export default function ChatScreen() {
         formData.append("userId", userId);
 
         const response = await axios.post<ParseResponse & { text?: string }>(
-          "http://localhost:3000/voice",
+          `${API_BASE_URL}/voice`,
           formData,
         );
 

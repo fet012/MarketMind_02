@@ -1,74 +1,40 @@
-const Database = require("better-sqlite3");
-const path = require("path");
+const { createClient } = require("@libsql/client");
 
-const db = new Database(path.join(__dirname, "marketmind.db"));
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
 
-// Create the transactions table if it doesn't exist yet
-db.exec(`
-  CREATE TABLE IF NOT EXISTS transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    type TEXT NOT NULL,
-    item TEXT NOT NULL,
-    amount REAL NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-
-// Create the debts table if it doesn't exist yet
-db.exec(`
-  CREATE TABLE IF NOT EXISTS debts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    debtor_name TEXT NOT NULL,
-    item TEXT NOT NULL,
-    original_amount REAL NOT NULL,
-    remaining_amount REAL NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    is_paid INTEGER DEFAULT 0
-  )
-`);
-
-function logTransaction(type, item, amount) {
+async function logTransaction(userId, type, item, amount) {
   const normalizedType = type === "sale" || type === "expense" ? type : null;
   const normalizedItem = typeof item === "string" ? item.trim() : "";
   const normalizedAmount = Number(amount);
 
-  if (!normalizedType) {
-    throw new Error("type must be sale or expense");
-  }
-
-  if (!normalizedItem) {
-    throw new Error("item is required");
-  }
-
+  if (!userId) throw new Error("userId is required");
+  if (!normalizedType) throw new Error("type must be sale or expense");
+  if (!normalizedItem) throw new Error("item is required");
   if (Number.isNaN(normalizedAmount) || normalizedAmount < 0) {
     throw new Error("amount must be a non-negative number");
   }
 
-  const stmt = db.prepare(
-    "INSERT INTO transactions (type, item, amount) VALUES (?, ?, ?)",
-  );
-  const result = stmt.run(normalizedType, normalizedItem, normalizedAmount);
-  return result.lastInsertRowid;
+  const result = await db.execute({
+    sql: "INSERT INTO transactions (user_id, type, item, amount) VALUES (?, ?, ?, ?)",
+    args: [userId, normalizedType, normalizedItem, normalizedAmount],
+  });
+  return Number(result.lastInsertRowid);
 }
 
-function getTransactionById(transactionId) {
-  return db
-    .prepare(
-      `
-    SELECT *
-    FROM transactions
-    WHERE id = ?
-  `,
-    )
-    .get(transactionId);
+async function getTransactionById(userId, transactionId) {
+  const result = await db.execute({
+    sql: "SELECT * FROM transactions WHERE id = ? AND user_id = ?",
+    args: [transactionId, userId],
+  });
+  return result.rows[0] || null;
 }
 
-function updateTransaction(transactionId, fields = {}) {
-  const existing = getTransactionById(transactionId);
-
-  if (!existing) {
-    throw new Error("Transaction not found");
-  }
+async function updateTransaction(userId, transactionId, fields = {}) {
+  const existing = await getTransactionById(userId, transactionId);
+  if (!existing) throw new Error("Transaction not found");
 
   const updates = [];
   const values = [];
@@ -76,9 +42,7 @@ function updateTransaction(transactionId, fields = {}) {
   if (fields.type !== undefined) {
     const normalizedType =
       fields.type === "sale" || fields.type === "expense" ? fields.type : null;
-    if (!normalizedType) {
-      throw new Error("type must be sale or expense");
-    }
+    if (!normalizedType) throw new Error("type must be sale or expense");
     updates.push("type = ?");
     values.push(normalizedType);
   }
@@ -86,9 +50,7 @@ function updateTransaction(transactionId, fields = {}) {
   if (fields.item !== undefined) {
     const normalizedItem =
       typeof fields.item === "string" ? fields.item.trim() : "";
-    if (!normalizedItem) {
-      throw new Error("item is required");
-    }
+    if (!normalizedItem) throw new Error("item is required");
     updates.push("item = ?");
     values.push(normalizedItem);
   }
@@ -102,182 +64,150 @@ function updateTransaction(transactionId, fields = {}) {
     values.push(normalizedAmount);
   }
 
-  if (updates.length === 0) {
-    return existing;
-  }
+  if (updates.length === 0) return existing;
 
-  values.push(transactionId);
-  db.prepare(
-    `
-    UPDATE transactions
-    SET ${updates.join(", ")}
-    WHERE id = ?
-  `,
-  ).run(...values);
+  values.push(transactionId, userId);
+  await db.execute({
+    sql: `UPDATE transactions SET ${updates.join(", ")} WHERE id = ? AND user_id = ?`,
+    args: values,
+  });
 
-  return getTransactionById(transactionId);
+  return getTransactionById(userId, transactionId);
 }
 
-function deleteTransaction(transactionId) {
-  const existing = getTransactionById(transactionId);
+async function deleteTransaction(userId, transactionId) {
+  const existing = await getTransactionById(userId, transactionId);
+  if (!existing) throw new Error("Transaction not found");
 
-  if (!existing) {
-    throw new Error("Transaction not found");
-  }
-
-  db.prepare("DELETE FROM transactions WHERE id = ?").run(transactionId);
+  await db.execute({
+    sql: "DELETE FROM transactions WHERE id = ? AND user_id = ?",
+    args: [transactionId, userId],
+  });
   return existing;
 }
 
-function getTodaySummary() {
-  const rows = db
-    .prepare(
-      `
-    SELECT type, SUM(amount) as total
-    FROM transactions
-    WHERE date(created_at) = date('now')
-    GROUP BY type
-  `,
-    )
-    .all();
+async function getTodaySummary(userId) {
+  const result = await db.execute({
+    sql: `
+      SELECT type, SUM(amount) as total
+      FROM transactions
+      WHERE user_id = ? AND date(created_at) = date('now')
+      GROUP BY type
+    `,
+    args: [userId],
+  });
 
   let sales = 0;
   let expenses = 0;
-  for (const row of rows) {
+  for (const row of result.rows) {
     if (row.type === "sale") sales = row.total;
     if (row.type === "expense") expenses = row.total;
   }
 
-  return {
-    sales,
-    expenses,
-    profit: sales - expenses,
-  };
+  return { sales, expenses, profit: sales - expenses };
 }
 
-function getTransactionHistory(limit = 50) {
-  return db
-    .prepare(
-      `
-    SELECT *
-    FROM transactions
-    ORDER BY created_at DESC
-    LIMIT ?
-  `,
-    )
-    .all(limit);
+async function getTransactionHistory(userId, limit = 50) {
+  const result = await db.execute({
+    sql: `
+      SELECT * FROM transactions
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `,
+    args: [userId, limit],
+  });
+  return result.rows;
 }
 
-function getSalesByItem() {
-  return db
-    .prepare(
-      `
-    SELECT item, SUM(amount) as total_amount
-    FROM transactions
-    WHERE type = 'sale'
-    GROUP BY item
-    ORDER BY total_amount DESC, item ASC
-  `,
-    )
-    .all();
+async function getSalesByItem(userId) {
+  const result = await db.execute({
+    sql: `
+      SELECT item, SUM(amount) as total_amount
+      FROM transactions
+      WHERE user_id = ? AND type = 'sale'
+      GROUP BY item
+      ORDER BY total_amount DESC, item ASC
+    `,
+    args: [userId],
+  });
+  return result.rows;
 }
 
-function getExpensesByItem() {
-  return db
-    .prepare(
-      `
-    SELECT item, SUM(amount) as total_amount
-    FROM transactions
-    WHERE type = 'expense'
-    GROUP BY item
-    ORDER BY total_amount DESC, item ASC
-  `,
-    )
-    .all();
+async function getExpensesByItem(userId) {
+  const result = await db.execute({
+    sql: `
+      SELECT item, SUM(amount) as total_amount
+      FROM transactions
+      WHERE user_id = ? AND type = 'expense'
+      GROUP BY item
+      ORDER BY total_amount DESC, item ASC
+    `,
+    args: [userId],
+  });
+  return result.rows;
 }
 
-function getRecentTransactions(limit = 10) {
-  return db
-    .prepare(
-      `
-    SELECT id, type, item, amount, created_at
-    FROM transactions
-    ORDER BY created_at DESC
-    LIMIT ?
-  `,
-    )
-    .all(limit);
+async function getRecentTransactions(userId, limit = 10) {
+  const result = await db.execute({
+    sql: `
+      SELECT id, type, item, amount, created_at
+      FROM transactions
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `,
+    args: [userId, limit],
+  });
+  return result.rows;
 }
 
-function getDebtSummary() {
-  return db
-    .prepare(
-      `
-    SELECT debtor_name, item, remaining_amount, is_paid
-    FROM debts
-    ORDER BY created_at DESC
-  `,
-    )
-    .all();
-}
-
-function createDebt(debtorName, item, amount) {
-  const stmt = db.prepare(`
-    INSERT INTO debts (debtor_name, item, original_amount, remaining_amount)
-    VALUES (?, ?, ?, ?)
-  `);
-  const result = stmt.run(debtorName, item, amount, amount);
-  return result.lastInsertRowid;
-}
-
-function getDebts(includeAllPaid = false) {
-  if (includeAllPaid) {
-    return db
-      .prepare(
-        `
-      SELECT *
+async function getDebtSummary(userId) {
+  const result = await db.execute({
+    sql: `
+      SELECT debtor_name, item, remaining_amount, is_paid
       FROM debts
+      WHERE user_id = ?
       ORDER BY created_at DESC
     `,
-      )
-      .all();
-  }
-
-  return db
-    .prepare(
-      `
-    SELECT *
-    FROM debts
-    WHERE is_paid = 0
-    ORDER BY created_at DESC
-  `,
-    )
-    .all();
+    args: [userId],
+  });
+  return result.rows;
 }
 
-function getDebtById(debtId) {
-  return db
-    .prepare(
-      `
-    SELECT *
-    FROM debts
-    WHERE id = ?
-  `,
-    )
-    .get(debtId);
+async function createDebt(userId, debtorName, item, amount) {
+  const result = await db.execute({
+    sql: `
+      INSERT INTO debts (user_id, debtor_name, item, original_amount, remaining_amount)
+      VALUES (?, ?, ?, ?, ?)
+    `,
+    args: [userId, debtorName, item, amount, amount],
+  });
+  return Number(result.lastInsertRowid);
 }
 
-function payDebt(debtId, paymentAmount) {
-  const debt = getDebtById(debtId);
+async function getDebts(userId, includeAllPaid = false) {
+  const sql = includeAllPaid
+    ? "SELECT * FROM debts WHERE user_id = ? ORDER BY created_at DESC"
+    : "SELECT * FROM debts WHERE user_id = ? AND is_paid = 0 ORDER BY created_at DESC";
 
-  if (!debt) {
-    throw new Error("Debt not found");
-  }
+  const result = await db.execute({ sql, args: [userId] });
+  return result.rows;
+}
 
-  if (debt.is_paid === 1) {
-    throw new Error("Debt is already fully paid");
-  }
+async function getDebtById(userId, debtId) {
+  const result = await db.execute({
+    sql: "SELECT * FROM debts WHERE id = ? AND user_id = ?",
+    args: [debtId, userId],
+  });
+  return result.rows[0] || null;
+}
 
+async function payDebt(userId, debtId, paymentAmount) {
+  const debt = await getDebtById(userId, debtId);
+
+  if (!debt) throw new Error("Debt not found");
+  if (debt.is_paid === 1) throw new Error("Debt is already fully paid");
   if (paymentAmount > debt.remaining_amount) {
     throw new Error("Payment exceeds remaining debt amount");
   }
@@ -285,17 +215,14 @@ function payDebt(debtId, paymentAmount) {
   const newRemainingAmount = Math.max(0, debt.remaining_amount - paymentAmount);
   const newIsPaid = newRemainingAmount === 0 ? 1 : 0;
 
-  db.prepare(
-    `
-    UPDATE debts
-    SET remaining_amount = ?, is_paid = ?
-    WHERE id = ?
-  `,
-  ).run(newRemainingAmount, newIsPaid, debtId);
+  await db.execute({
+    sql: "UPDATE debts SET remaining_amount = ?, is_paid = ? WHERE id = ? AND user_id = ?",
+    args: [newRemainingAmount, newIsPaid, debtId, userId],
+  });
 
-  logTransaction("sale", debt.item, paymentAmount);
+  await logTransaction(userId, "sale", debt.item, paymentAmount);
 
-  return getDebtById(debtId);
+  return getDebtById(userId, debtId);
 }
 
 module.exports = {
