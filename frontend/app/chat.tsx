@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
-import { Audio } from "expo-av";
+
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -56,7 +56,6 @@ export default function ChatScreen() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const buildReply = (data: ParseResponse) => {
@@ -235,124 +234,10 @@ export default function ChatScreen() {
   };
 
   const handleVoiceToggle = async () => {
-    if (loading) {
-      return;
-    }
-
-    if (isRecording) {
-      if (!recording) {
-        setIsRecording(false);
-        return;
-      }
-
-      try {
-        setStatusMessage("Processing voice note...");
-        setLoading(true);
-        await recording.stopAndUnloadAsync();
-        const uri = recording.getURI();
-        setRecording(null);
-        setIsRecording(false);
-
-        if (!uri) {
-          throw new Error("No audio recorded");
-        }
-
-        const recordingMetadata = await getRecordingUploadMetadata(uri);
-        console.log("[voice] recording uri:", uri);
-        console.log(
-          "[voice] recorded blob mime type:",
-          recordingMetadata.actualMimeType,
-        );
-        console.log(
-          "[voice] upload file name:",
-          `voice.${recordingMetadata.extension}`,
-        );
-
-        const formData = new FormData();
-        if (Platform.OS === "web" && recordingMetadata.blob) {
-          formData.append(
-            "audio",
-            recordingMetadata.blob,
-            `voice.${recordingMetadata.extension}`,
-          );
-        } else {
-          formData.append("audio", {
-            uri,
-            name: `voice.${recordingMetadata.extension}`,
-            type: recordingMetadata.actualMimeType,
-          } as any);
-        }
-
-        const { userId, language } = await getUserProfile();
-        if (!userId) {
-          throw new Error("Missing user profile");
-        }
-        formData.append("language", language);
-        formData.append("userId", userId);
-
-        const response = await axios.post<ParseResponse & { text?: string }>(
-          `${API_BASE_URL}/voice`,
-          formData,
-        );
-
-        const transcribedText = response.data.text?.trim();
-        if (transcribedText) {
-          setInput(transcribedText);
-          setStatusMessage("Transcription ready — edit and press Send.");
-        } else {
-          setStatusMessage("No text was detected. Please try again.");
-        }
-      } catch {
-        const assistantReply: ChatMessage = {
-          id: `${Date.now()}-voice-error`,
-          role: "assistant",
-          text: "Sorry, I couldn't process that voice note — try again",
-        };
-
-        setMessages((current) => [...current, assistantReply]);
-      } finally {
-        setLoading(false);
-        setStatusMessage(null);
-      }
-
-      return;
-    }
-
-    try {
-      const permission = await Audio.requestPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert(
-          "Microphone access needed",
-          "Please allow microphone access so you can record voice messages.",
-        );
-        return;
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const newRecording = new Audio.Recording();
-      const recordingPreset =
-        (Audio as any).RECORDING_OPTIONS_PRESET_HIGH_QUALITY ||
-        (Audio as any).RecordingOptionsPresets?.HIGH_QUALITY;
-      const recordingOptions = {
-        ...recordingPreset,
-        web: {
-          ...(recordingPreset?.web ?? {}),
-          mimeType: "audio/webm",
-          bitsPerSecond: 128000,
-        },
-      };
-      await newRecording.prepareToRecordAsync(recordingOptions);
-      await newRecording.startAsync();
-      setRecording(newRecording);
-      setIsRecording(true);
-      setStatusMessage("🎙 Listening...");
-    } catch {
-      Alert.alert("Recording failed", "We couldn't start recording right now.");
-    }
+    Alert.alert(
+      "Coming soon",
+      "Voice recording isn't available in this version yet — please type your message instead.",
+    );
   };
 
   return (
