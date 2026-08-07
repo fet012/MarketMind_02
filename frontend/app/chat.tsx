@@ -20,9 +20,13 @@ import {
   View,
 } from "react-native";
 
-const backgroundColor = "#F9F6F1";
+const backgroundColor = "#F7F3EE";
 const primaryAccent = "#F5A623";
 const textAccent = "#1B6A3A";
+const deepGreen = "#14532D";
+const mutedText = "#5B6E5B";
+const warmGlow = "#FDE9C8";
+const gold = "#D97706";
 
 type ChatMessage = {
   id: string;
@@ -242,7 +246,7 @@ export default function ChatScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <LinearGradient
-        colors={["#FCF8EF", "#F7EFD8", "#F4E6C5"]}
+        colors={["#F7F3EE", "#F0E5D8", "#E7D6C1"]}
         start={{ x: 0.05, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -253,12 +257,17 @@ export default function ChatScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "android" ? 0 : 0}
       >
-        <View style={styles.headerCard}>
+        <MotiView
+          from={{ opacity: 0, translateY: 12 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: "timing", duration: 350 }}
+          style={styles.headerCard}
+        >
           <Pressable
             onPress={() => router.replace("/dashboard")}
             style={styles.backButton}
           >
-            <Ionicons name="chevron-back" size={20} color={textAccent} />
+            <Ionicons name="chevron-back" size={20} color={deepGreen} />
           </Pressable>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>MarketMind Chat</Text>
@@ -266,7 +275,7 @@ export default function ChatScreen() {
               Voice or text, whichever feels easier.
             </Text>
           </View>
-        </View>
+        </MotiView>
 
         <ScrollView
           style={styles.chatList}
@@ -287,7 +296,7 @@ export default function ChatScreen() {
               <LinearGradient
                 colors={
                   message.role === "user"
-                    ? [textAccent, "#347B53"]
+                    ? [deepGreen, "#347B53"]
                     : ["rgba(255,255,255,0.9)", "rgba(248,240,225,0.95)"]
                 }
                 start={{ x: 0, y: 0 }}
@@ -349,7 +358,7 @@ export default function ChatScreen() {
             <Ionicons
               name={isRecording ? "stop-circle" : "mic"}
               size={18}
-              color={textAccent}
+              color={deepGreen}
             />
           </Pressable>
           <Pressable style={styles.sendButton} onPress={handleSend}>
@@ -377,10 +386,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginHorizontal: 12,
     marginTop: 8,
-    borderRadius: 20,
+    borderRadius: 24,
     backgroundColor: "rgba(255,255,255,0.78)",
     borderWidth: 1,
-    borderColor: "rgba(27,106,58,0.12)",
+    borderColor: "rgba(27,106,58,0.08)",
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 10,
@@ -388,9 +397,20 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.75)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(27,106,58,0.12)",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
     marginRight: 12,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
   },
   headerContent: {
     flex: 1,
@@ -398,11 +418,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: textAccent,
+    color: deepGreen,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: "#6E7C70",
+    color: mutedText,
     marginTop: 2,
   },
   chatList: {
@@ -429,9 +449,9 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: "rgba(27,106,58,0.14)",
+    borderColor: "rgba(27,106,58,0.08)",
     shadowColor: "#000",
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
@@ -450,7 +470,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   assistantText: {
-    color: textAccent,
+    color: deepGreen,
   },
   loadingRow: {
     flexDirection: "row",
@@ -468,10 +488,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginHorizontal: 10,
     marginBottom: 10,
-    borderRadius: 22,
+    borderRadius: 24,
     backgroundColor: "rgba(255,255,255,0.9)",
     borderWidth: 1,
-    borderColor: "rgba(27,106,58,0.12)",
+    borderColor: "rgba(27,106,58,0.08)",
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 10,
@@ -488,10 +508,10 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     color: "#1F2A24",
     borderWidth: 1,
-    borderColor: "#EFE2C4",
+    borderColor: "rgba(27,106,58,0.12)",
   },
   iconButton: {
-    backgroundColor: "#F7F0E4",
+    backgroundColor: warmGlow,
     borderRadius: 14,
     width: 44,
     height: 44,
@@ -499,7 +519,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#EADFCF",
+    borderColor: "rgba(27,106,58,0.12)",
   },
   recordingButton: {
     backgroundColor: "#FFE9E2",

@@ -183,23 +183,35 @@ async function answerQuestion(userId, question, language = "english") {
   const context = await buildAskContext(userId);
   const isPidgin = language === "pidgin";
 
-  const prompt = `
+ const prompt = `
 You are MarketMind, a business assistant for Nigerian market traders.
-Answer the trader's question using ONLY the data provided below.
+Read the trader's message and extract transaction data.
 ${isPidgin ? "Respond naturally, as a Nigerian Pidgin speaker would." : ""}
 
-Return ONLY valid JSON in this exact format:
-{"answer": "short practical answer"}
+Traders often speak casually or use shorthand. Handle these cases:
+- "2k" means 2000, "5k" means 5000, "1.5k" means 1500
+- "sell fish 2k" (no full sentence) still means: sold fish for 2000
+- "fish 2k" alone (just item + amount, no verb) should be treated as a SALE by default, unless a word like "bought", "buy", "spent" clearly signals an expense
+- Amounts may be written as numbers, words ("five thousand"), or shorthand ("5k") — handle all forms
 
-Important:
-- Do not invent facts.
-- If the data is missing or insufficient, say so clearly.
-- Keep the answer concise and practical.
+Examples:
+"I sell fish 2k" -> {"type": "sale", "item": "fish", "amount": 2000, "reply": "..."}
+"fish 2k" -> {"type": "sale", "item": "fish", "amount": 2000, "reply": "..."}
+"bought rice 5k" -> {"type": "expense", "item": "rice", "amount": 5000, "reply": "..."}
+"I sold rice for 3000 naira" -> {"type": "sale", "item": "rice", "amount": 3000, "reply": "..."}
 
-Context data:
-${JSON.stringify(context, null, 2)}
+Respond with ONLY valid JSON, no other text, in this exact format:
+{
+  "type": "sale" or "expense",
+  "item": "item name",
+  "amount": number,
+  "reply": "short natural-language confirmation"
+}
 
-Question: "${question}"
+If the message is genuinely not a transaction (a question, greeting, or unrelated statement), respond with:
+{"type": null, "item": null, "amount": null, "reply": "short natural-language confirmation"}
+
+Trader's message: "${message}"
 `;
 
   const result = await model.generateContent(prompt);

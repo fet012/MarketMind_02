@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
+import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { MotiView } from "moti";
 import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../config";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -16,9 +18,16 @@ import {
   View,
 } from "react-native";
 
-const backgroundColor = "#F9F6F1";
-const primaryAccent = "#F5A623";
-const textAccent = "#1B6A3A";
+// ---- Shared palette (matches dashboard) ----
+const bgGradient = ["#FBF7EE", "#F4E9D2", "#ECDAB2"] as const;
+const deepGreen = "#0F2E1F";
+const midGreen = "#1B6A3A";
+const softEmerald = "#2E7D53";
+const gold = "#F5A623";
+const richGold = "#D98A1F";
+const cream = "#FFFBF3";
+const textDark = "#1F2A22";
+const textMuted = "#6E7C70";
 
 type Debt = {
   id: number;
@@ -153,55 +162,100 @@ export default function DebtsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <LinearGradient
-        colors={["#FCF8EF", "#F7EFD8", "#F4E6C5"]}
-        start={{ x: 0.05, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={bgGradient}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
       <View style={styles.container}>
-        <View style={styles.headerRow}>
+        {/* ---------- Header ---------- */}
+        <MotiView
+          from={{ opacity: 0, translateY: -8 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: "timing", duration: 300 }}
+          style={styles.headerRow}
+        >
           <Pressable
             onPress={() => router.replace("/dashboard")}
             style={styles.backButton}
           >
-            <Ionicons name="chevron-back" size={20} color={textAccent} />
+            <Ionicons name="chevron-back" size={20} color={midGreen} />
           </Pressable>
           <Text style={styles.title}>Debts</Text>
           <Pressable
-            style={styles.primaryButton}
+            style={styles.addButton}
             onPress={() => setShowAddModal(true)}
           >
-            <Ionicons name="add" size={16} color="#FFFDF7" />
-            <Text style={styles.primaryButtonText}>Add</Text>
+            <LinearGradient
+              colors={[gold, richGold]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <Ionicons name="add" size={16} color={cream} />
+            <Text style={styles.addButtonText}>Add</Text>
           </Pressable>
-        </View>
+        </MotiView>
 
-        <View style={styles.heroCard}>
-          <View style={styles.heroText}>
-            <Text style={styles.heroEyebrow}>Overview</Text>
-            <Text style={styles.heroTitle}>Track pending balances</Text>
-          </View>
-          <View style={styles.heroMetrics}>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Outstanding</Text>
-              <Text style={styles.metricValue}>
-                {formatCurrency(outstandingTotal)}
+        {/* ---------- Hero summary ---------- */}
+        <MotiView
+          from={{ opacity: 0, translateY: 14 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: "timing", duration: 400, delay: 80 }}
+          style={styles.heroCard}
+        >
+          <LinearGradient
+            colors={[deepGreen, midGreen, softEmerald]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <LinearGradient
+            colors={["rgba(255,255,255,0.10)", "rgba(255,255,255,0)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 0.7 }}
+            style={StyleSheet.absoluteFill}
+          />
+
+          <Text style={styles.heroEyebrow}>OUTSTANDING BALANCE</Text>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.4}
+            style={styles.heroValue}
+          >
+            {formatCurrency(outstandingTotal)}
+          </Text>
+
+          <View style={styles.heroDivider} />
+
+          <View style={styles.heroFooterRow}>
+            <View style={styles.heroFooterChip}>
+              <Ionicons name="folder-open-outline" size={14} color={gold} />
+              <Text style={styles.heroFooterText}>
+                {openCount} open {openCount === 1 ? "debt" : "debts"}
               </Text>
             </View>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Open</Text>
-              <Text style={styles.metricValue}>{openCount}</Text>
+            <View style={styles.heroFooterChip}>
+              <Ionicons name="people-outline" size={14} color={gold} />
+              <Text style={styles.heroFooterText}>
+                {debts.length} total
+              </Text>
             </View>
           </View>
-        </View>
+        </MotiView>
 
+        {/* ---------- List ---------- */}
         {loading ? (
           <View style={styles.centerState}>
-            <Text style={styles.loadingText}>Loading debts...</Text>
+            <Text style={styles.loadingText}>Loading debts…</Text>
           </View>
         ) : debts.length === 0 ? (
           <View style={styles.centerState}>
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="wallet-outline" size={28} color={midGreen} />
+            </View>
             <Text style={styles.emptyText}>No debts recorded yet</Text>
           </View>
         ) : (
@@ -209,33 +263,70 @@ export default function DebtsScreen() {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           >
-            {debts.map((debt) => (
-              <View key={debt.id} style={styles.debtCard}>
-                <View style={styles.debtIconWrap}>
-                  <Ionicons
-                    name="receipt-outline"
-                    size={18}
-                    color={textAccent}
-                  />
-                </View>
+            {debts.map((debt, index) => (
+              <MotiView
+                key={debt.id}
+                from={{ opacity: 0, translateY: 12 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{
+                  type: "timing",
+                  duration: 350,
+                  delay: 60 * Math.min(index, 6),
+                }}
+                style={styles.debtCard}
+              >
                 <View style={styles.debtTopRow}>
+                  <View style={styles.debtIconWrap}>
+                    <Ionicons
+                      name="receipt-outline"
+                      size={18}
+                      color={midGreen}
+                    />
+                  </View>
                   <View style={styles.debtTextWrap}>
-                    <Text style={styles.debtorName}>{debt.debtor_name}</Text>
-                    <Text style={styles.itemName}>{debt.item}</Text>
-                    <Text style={styles.timestamp}>
-                      {formatTimestamp(debt.created_at)}
+                    <Text style={styles.debtorName} numberOfLines={1}>
+                      {debt.debtor_name}
+                    </Text>
+                    <Text style={styles.itemName} numberOfLines={1}>
+                      {debt.item}
                     </Text>
                   </View>
-                  <View style={styles.amountColumn}>
-                    <Text style={styles.amountText}>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      debt.is_paid === 1
+                        ? styles.statusBadgePaid
+                        : styles.statusBadgeOpen,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusBadgeText,
+                        debt.is_paid === 1
+                          ? styles.statusBadgeTextPaid
+                          : styles.statusBadgeTextOpen,
+                      ]}
+                    >
+                      {debt.is_paid === 1 ? "Paid" : "Open"}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.debtBottomRow}>
+                  <View style={styles.debtAmountWrap}>
+                    <Text style={styles.amountLabel}>Remaining</Text>
+                    <Text
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.6}
+                      style={styles.amountText}
+                    >
                       {formatCurrency(debt.remaining_amount)}
                     </Text>
-                    <View style={styles.statusBadge}>
-                      <Text style={styles.statusBadgeText}>
-                        {debt.is_paid === 1 ? "Paid" : "Open"}
-                      </Text>
-                    </View>
                   </View>
+                  <Text style={styles.timestamp}>
+                    {formatTimestamp(debt.created_at)}
+                  </Text>
                 </View>
 
                 <Pressable
@@ -246,46 +337,61 @@ export default function DebtsScreen() {
                   }}
                 >
                   <Ionicons
-                    name="arrow-forward-outline"
-                    size={15}
-                    color={textAccent}
+                    name="arrow-forward-circle-outline"
+                    size={16}
+                    color={midGreen}
                   />
-                  <Text style={styles.secondaryButtonText}>Record Payment</Text>
+                  <Text style={styles.secondaryButtonText}>
+                    Record Payment
+                  </Text>
                 </Pressable>
-              </View>
+              </MotiView>
             ))}
           </ScrollView>
         )}
       </View>
 
-      <Modal visible={showAddModal} transparent animationType="slide">
+      {/* ---------- Add Debt Modal ---------- */}
+      <Modal visible={showAddModal} transparent animationType="fade">
+        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Add Debt</Text>
+          <MotiView
+            from={{ opacity: 0, translateY: 24 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: "timing", duration: 280 }}
+            style={styles.modalCard}
+          >
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Add Debt</Text>
+              <Pressable onPress={() => setShowAddModal(false)}>
+                <Ionicons name="close" size={22} color={textMuted} />
+              </Pressable>
+            </View>
+
             <Text style={styles.label}>Debtor name</Text>
             <TextInput
               style={styles.input}
               value={debtorName}
               onChangeText={setDebtorName}
-              placeholder="Debtor name"
-              placeholderTextColor="#8F9A92"
+              placeholder="e.g. Mama Ngozi"
+              placeholderTextColor="#A3AA9F"
             />
             <Text style={styles.label}>Item</Text>
             <TextInput
               style={styles.input}
               value={item}
               onChangeText={setItem}
-              placeholder="Item"
-              placeholderTextColor="#8F9A92"
+              placeholder="e.g. Bag of rice"
+              placeholderTextColor="#A3AA9F"
             />
             <Text style={styles.label}>Amount</Text>
             <TextInput
               style={styles.input}
               value={amount}
               onChangeText={setAmount}
-              placeholder="Amount"
+              placeholder="₦0"
               keyboardType="numeric"
-              placeholderTextColor="#8F9A92"
+              placeholderTextColor="#A3AA9F"
             />
             <View style={styles.modalActions}>
               <Pressable
@@ -295,28 +401,47 @@ export default function DebtsScreen() {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={styles.primaryButton}
+                style={styles.saveButton}
                 onPress={handleCreateDebt}
               >
-                <Text style={styles.primaryButtonText}>Save</Text>
+                <LinearGradient
+                  colors={[gold, richGold]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <Text style={styles.saveButtonText}>Save</Text>
               </Pressable>
             </View>
-          </View>
+          </MotiView>
         </View>
       </Modal>
 
-      <Modal visible={showPayModal} transparent animationType="slide">
+      {/* ---------- Record Payment Modal ---------- */}
+      <Modal visible={showPayModal} transparent animationType="fade">
+        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Record Payment</Text>
+          <MotiView
+            from={{ opacity: 0, translateY: 24 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: "timing", duration: 280 }}
+            style={styles.modalCard}
+          >
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Record Payment</Text>
+              <Pressable onPress={() => setShowPayModal(false)}>
+                <Ionicons name="close" size={22} color={textMuted} />
+              </Pressable>
+            </View>
+
             <Text style={styles.label}>Payment amount</Text>
             <TextInput
               style={styles.input}
               value={paymentAmount}
               onChangeText={setPaymentAmount}
-              placeholder="Amount"
+              placeholder="₦0"
               keyboardType="numeric"
-              placeholderTextColor="#8F9A92"
+              placeholderTextColor="#A3AA9F"
             />
             <View style={styles.modalActions}>
               <Pressable
@@ -326,13 +451,19 @@ export default function DebtsScreen() {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={styles.primaryButton}
+                style={styles.saveButton}
                 onPress={handleRecordPayment}
               >
-                <Text style={styles.primaryButtonText}>Save</Text>
+                <LinearGradient
+                  colors={[gold, richGold]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <Text style={styles.saveButtonText}>Save</Text>
               </Pressable>
             </View>
-          </View>
+          </MotiView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -342,25 +473,26 @@ export default function DebtsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor,
   },
   container: {
     flex: 1,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
+
+  // ---------- Header ----------
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 14,
-    gap: 8,
+    marginBottom: 16,
+    gap: 10,
   },
   backButton: {
-    flexShrink: 0,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "rgba(255,255,255,0.75)",
     alignItems: "center",
     justifyContent: "center",
@@ -370,111 +502,107 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     textAlign: "center",
-    fontSize: 20,
-    fontWeight: "700",
-    color: textAccent,
+    fontSize: 19,
+    fontWeight: "800",
+    color: textDark,
   },
-  primaryButton: {
+  addButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: primaryAccent,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 999,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    overflow: "hidden",
+    shadowColor: richGold,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
-  primaryButtonText: {
-    color: "#FFFDF7",
+  addButtonText: {
+    color: cream,
     fontWeight: "700",
     fontSize: 13,
   },
+
+  // ---------- Hero ----------
   heroCard: {
-    padding: 14,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.78)",
-    borderWidth: 1,
-    borderColor: "rgba(27,106,58,0.12)",
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-    marginBottom: 14,
-  },
-  heroText: {
-    marginBottom: 10,
+    borderRadius: 26,
+    overflow: "hidden",
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: deepGreen,
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
   heroEyebrow: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
-    color: "#6E7C70",
-    letterSpacing: 1.1,
-    textTransform: "uppercase",
+    color: "rgba(255,251,243,0.7)",
+    letterSpacing: 1.2,
   },
-  heroTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: textAccent,
-    marginTop: 3,
+  heroValue: {
+    fontSize: 34,
+    fontWeight: "800",
+    color: cream,
+    marginTop: 8,
   },
-  heroMetrics: {
+  heroDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    marginVertical: 14,
+  },
+  heroFooterRow: {
     flexDirection: "row",
     gap: 10,
   },
-  metricCard: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: "#FFF9EE",
+  heroFooterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
-  metricLabel: {
+  heroFooterText: {
+    color: "rgba(255,251,243,0.85)",
     fontSize: 12,
-    color: "#6E7C70",
-    marginBottom: 4,
+    fontWeight: "600",
   },
-  metricValue: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: textAccent,
-  },
+
+  // ---------- List ----------
   listContent: {
     paddingBottom: 24,
     gap: 12,
   },
   debtCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.83)",
-    padding: 14,
-    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.82)",
+    padding: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(27,106,58,0.12)",
+    borderColor: "rgba(27,106,58,0.10)",
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
     elevation: 2,
   },
+  debtTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   debtIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#FDEECF",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(245,166,35,0.16)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
-  },
-  debtTopRow: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
   },
   debtTextWrap: {
     flex: 1,
@@ -483,116 +611,175 @@ const styles = StyleSheet.create({
   debtorName: {
     fontSize: 15,
     fontWeight: "700",
-    color: textAccent,
+    color: textDark,
   },
   itemName: {
-    fontSize: 13,
-    color: "#4E6556",
-    marginTop: 2,
-  },
-  timestamp: {
-    fontSize: 12,
-    color: "#4E6556",
-    marginTop: 4,
-  },
-  amountColumn: {
-    alignItems: "flex-end",
-  },
-  amountText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: textAccent,
+    fontSize: 12.5,
+    color: textMuted,
+    marginTop: 1,
   },
   statusBadge: {
-    marginTop: 4,
-    backgroundColor: "#EAF4EC",
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 999,
   },
+  statusBadgeOpen: {
+    backgroundColor: "rgba(245,166,35,0.16)",
+  },
+  statusBadgePaid: {
+    backgroundColor: "rgba(27,106,58,0.12)",
+  },
   statusBadgeText: {
-    color: textAccent,
     fontSize: 11,
     fontWeight: "700",
+  },
+  statusBadgeTextOpen: {
+    color: richGold,
+  },
+  statusBadgeTextPaid: {
+    color: midGreen,
+  },
+  debtBottomRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  debtAmountWrap: {
+    flexShrink: 1,
+    marginRight: 10,
+  },
+  amountLabel: {
+    fontSize: 11,
+    color: textMuted,
+    marginBottom: 2,
+  },
+  amountText: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: textDark,
+  },
+  timestamp: {
+    fontSize: 11.5,
+    color: textMuted,
   },
   secondaryButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    alignSelf: "flex-start",
-    backgroundColor: "#F5EFD8",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 999,
-    marginLeft: 10,
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "rgba(27,106,58,0.08)",
+    paddingVertical: 10,
+    borderRadius: 12,
   },
   secondaryButtonText: {
-    color: textAccent,
+    color: midGreen,
     fontWeight: "700",
-    fontSize: 12,
+    fontSize: 13,
   },
+
+  // ---------- Empty / loading ----------
   centerState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
   loadingText: {
-    color: textAccent,
-    fontSize: 16,
+    color: midGreen,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  emptyIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(27,106,58,0.10)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
   },
   emptyText: {
-    color: "#4E6556",
-    fontSize: 15,
+    color: textMuted,
+    fontSize: 14.5,
+    fontWeight: "500",
   },
+
+  // ---------- Modals ----------
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.25)",
-    padding: 20,
+    padding: 22,
   },
   modalCard: {
-    backgroundColor: "rgba(255,255,255,0.96)",
-    borderRadius: 18,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "rgba(27,106,58,0.12)",
+    backgroundColor: cream,
+    borderRadius: 24,
+    padding: 22,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
+  },
+  modalHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: textAccent,
-    marginBottom: 12,
+    fontWeight: "800",
+    color: textDark,
   },
   label: {
     fontSize: 13,
     fontWeight: "600",
-    color: textAccent,
+    color: midGreen,
     marginBottom: 6,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#E7E0D8",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 10,
-    color: "#1F2A24",
-    backgroundColor: "#FFFDF7",
+    borderColor: "rgba(27,106,58,0.14)",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 14,
+    color: textDark,
+    backgroundColor: "#FFFFFF",
+    fontSize: 14.5,
   },
   modalActions: {
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 10,
-    marginTop: 8,
+    marginTop: 4,
   },
   cancelButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: "#F5EFD8",
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: "rgba(27,106,58,0.08)",
   },
   cancelButtonText: {
-    color: textAccent,
+    color: midGreen,
     fontWeight: "700",
+    fontSize: 14,
+  },
+  saveButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: richGold,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  saveButtonText: {
+    color: cream,
+    fontWeight: "700",
+    fontSize: 14,
   },
 });

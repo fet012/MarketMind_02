@@ -17,10 +17,14 @@ import {
   View,
 } from "react-native";
 
-const backgroundColor = "#F9F6F1";
+const backgroundColor = "#F7F3EE";
 const primaryAccent = "#F5A623";
+const deepGreen = "#14532D";
 const textAccent = "#1B6A3A";
-const warmGlow = "#FDECCF";
+const mutedText = "#5B6E5B";
+const warmGlow = "#FDE9C8";
+const negativeRed = "#C2410C";
+const gold = "#D97706";
 
 type UserData = {
   userId?: string;
@@ -41,21 +45,22 @@ export default function DashboardScreen() {
   const [summaryError, setSummaryError] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const router = useRouter();
- const loadSummary = async (userId: string) => {
-      try {
-        setLoadingSummary(true);
-        setSummaryError(false);
-        const response = await axios.get<SummaryData>(
-          `${API_BASE_URL}/summary?userId=${userId}`,
-        );
-        setSummary(response.data);
-      } catch {
-        setSummaryError(true);
-        setSummary({ sales: 0, expenses: 0, profit: 0 });
-      } finally {
-        setLoadingSummary(false);
-      }
-    };
+
+  const loadSummary = async (userId: string) => {
+    try {
+      setLoadingSummary(true);
+      setSummaryError(false);
+      const response = await axios.get<SummaryData>(
+        `${API_BASE_URL}/summary?userId=${userId}`,
+      );
+      setSummary(response.data);
+    } catch {
+      setSummaryError(true);
+      setSummary({ sales: 0, expenses: 0, profit: 0 });
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
 
   useEffect(() => {
     const loadUser = async () => {
@@ -82,18 +87,16 @@ export default function DashboardScreen() {
       }
     };
 
-   
-
     loadUser();
   }, [router]);
 
-
   const onRefresh = async () => {
-  if (!user?.userId) return;
-  setRefreshing(true);
-  await loadSummary(user.userId);
-  setRefreshing(false);
-};
+    if (!user?.userId) return;
+    setRefreshing(true);
+    await loadSummary(user.userId);
+    setRefreshing(false);
+  };
+
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
 
@@ -111,189 +114,176 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <LinearGradient
-        colors={["#FCF8EF", "#F7EFD8", "#F4E6C5"]}
+        colors={["#F7F3EE", "#F0E5D8", "#E7D6C1"]}
         start={{ x: 0.05, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        scrollEnabled={false}
       >
-        <MotiView
-          from={{ opacity: 0, translateY: 16 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: "timing", duration: 350 }}
-          style={styles.headerCard}
-        >
-          <LinearGradient
-            colors={["rgba(255,255,255,0.94)", "rgba(249,246,241,0.84)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.headerContent}>
-            <View>
+        <View style={styles.innerContainer}>
+          {/* Header */}
+          <MotiView
+            from={{ opacity: 0, translateY: 16 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: "timing", duration: 350 }}
+            style={styles.headerRow}
+          >
+            <View style={styles.headerTextWrap}>
+              <Text style={styles.headerEyebrow}>
+                {new Date().toLocaleDateString(undefined, {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                })}
+              </Text>
               <Text style={styles.greeting}>
                 {greeting}, {user.name}
               </Text>
               <Text style={styles.subheading}>
-                Your business pulse is looking bright today.
+                Your business pulse looks bright today.
               </Text>
             </View>
-            <View style={styles.pillBadge}>
-              <Ionicons name="sparkles" size={14} color={primaryAccent} />
-              <Text style={styles.pillText}>Live insights</Text>
+            <View style={styles.liveBadge}>
+              <Ionicons name="sparkles" size={14} color={gold} />
+              <Text style={styles.liveBadgeText}>Live</Text>
             </View>
-          </View>
-        </MotiView>
+          </MotiView>
 
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: "timing", duration: 450, delay: 80 }}
-          style={styles.summaryCard}
-        >
-          <LinearGradient
-            colors={["rgba(255,255,255,0.68)", "rgba(249,246,241,0.52)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <BlurView
-            intensity={18}
-            tint="light"
-            style={StyleSheet.absoluteFill}
-          />
-
-          <View style={styles.summaryInner}>
-            <View style={styles.summaryHeader}>
-              <View>
-                <Text style={styles.summaryEyebrow}>Snapshot</Text>
-                <Text style={styles.summaryTitle}>Today&apos;s Summary</Text>
-              </View>
-              <View style={styles.summaryBadge}>
-                <Ionicons
-                  name="trending-up-outline"
-                  size={16}
-                  color={textAccent}
-                />
-              </View>
-            </View>
-
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryItem}>
-                <View
-                  style={[styles.metricIcon, { backgroundColor: "#FDEECF" }]}
-                >
-                  <Ionicons name="cash-outline" size={16} color={textAccent} />
-                </View>
-                <Text style={styles.summaryLabel}>Sales</Text>
-                <Text style={styles.summaryValue}>
-                  {loadingSummary ? "..." : formatCurrency(summary?.sales ?? 0)}
-                </Text>
-              </View>
-
-              <View style={styles.summaryItem}>
-                <View
-                  style={[styles.metricIcon, { backgroundColor: "#E8F2EA" }]}
-                >
-                  <Ionicons
-                    name="receipt-outline"
-                    size={16}
-                    color={textAccent}
-                  />
-                </View>
-                <Text style={styles.summaryLabel}>Expenses</Text>
-                <Text style={styles.summaryValue}>
-                  {loadingSummary
-                    ? "..."
-                    : formatCurrency(summary?.expenses ?? 0)}
-                </Text>
-              </View>
-
-              <View style={styles.summaryItem}>
-                <View
-                  style={[styles.metricIcon, { backgroundColor: "#FFF0D1" }]}
-                >
-                  <Ionicons
-                    name="bar-chart-outline"
-                    size={16}
-                    color={textAccent}
-                  />
-                </View>
-                <Text style={styles.summaryLabel}>Profit</Text>
-                <Text
-                  style={[
-                    styles.summaryValue,
-                    (summary?.profit ?? 0) < 0 ? styles.negativeValue : null,
-                  ]}
-                >
-                  {loadingSummary
-                    ? "..."
-                    : formatCurrency(summary?.profit ?? 0)}
-                </Text>
-              </View>
-            </View>
-
-            {summaryError ? (
-              <Text style={styles.errorText}>
-                Couldn&apos;t load data right now.
-              </Text>
-            ) : null}
-          </View>
-        </MotiView>
-
-        <MotiView
-          from={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "timing", duration: 400, delay: 140 }}
-          style={styles.micArea}
-        >
-          <Pressable
-            style={styles.micButton}
-            onPress={() => router.push("/chat")}
+          {/* Hero summary card */}
+          <MotiView
+            from={{ opacity: 0, translateY: 24 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: "timing", duration: 500, delay: 100 }}
+            style={styles.heroCard}
           >
             <LinearGradient
-              colors={[primaryAccent, "#F6B94A"]}
+              colors={["rgba(255,255,255,0.9)", "rgba(250,244,238,0.7)"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
-            <View style={styles.micInner}>
-              <Ionicons name="mic" size={34} color="#FFFDF7" />
-            </View>
-          </Pressable>
-          <Text style={styles.micLabel}>Tap to speak with MarketMind</Text>
-        </MotiView>
+            <BlurView
+              intensity={24}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
 
-        <View style={styles.linksRow}>
-          <Pressable
-            style={styles.actionCard}
-            onPress={() => router.push("/debts")}
-          >
-            <View style={styles.actionIconWrap}>
-              <Ionicons name="wallet-outline" size={18} color={textAccent} />
-            </View>
-            <Text style={styles.actionTitle}>Debts</Text>
-            <Text style={styles.actionSubtitle}>Track what&apos;s owed</Text>
-          </Pressable>
+            <View style={styles.heroContent}>
+              <View style={styles.heroHeader}>
+                <Text style={styles.heroEyebrow}>Today's Summary</Text>
+                <View style={styles.heroBadge}>
+                  <Ionicons name="trending-up-outline" size={16} color={deepGreen} />
+                </View>
+              </View>
 
-          <Pressable
-            style={styles.actionCard}
-            onPress={() => router.push("/history")}
-          >
-            <View style={styles.actionIconWrap}>
-              <Ionicons name="time-outline" size={18} color={textAccent} />
+              <Text style={styles.profitLabel}>Net Profit</Text>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.6}
+                style={[
+                  styles.profitValue,
+                  (summary?.profit ?? 0) < 0 ? styles.negativeValue : null,
+                ]}
+              >
+                {loadingSummary ? "..." : formatCurrency(summary?.profit ?? 0)}
+              </Text>
+
+              <View style={styles.divider} />
+
+              <View style={styles.statsRow}>
+                <View style={styles.statColumn}>
+                  <Text style={styles.statLabel}>Sales</Text>
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.6}
+                    style={styles.statValue}
+                  >
+                    {loadingSummary ? "..." : formatCurrency(summary?.sales ?? 0)}
+                  </Text>
+                </View>
+                <View style={styles.verticalDivider} />
+                <View style={styles.statColumn}>
+                  <Text style={styles.statLabel}>Expenses</Text>
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.6}
+                    style={styles.statValue}
+                  >
+                    {loadingSummary ? "..." : formatCurrency(summary?.expenses ?? 0)}
+                  </Text>
+                </View>
+              </View>
+
+              {summaryError ? (
+                <Text style={styles.errorText}>Couldn't load data right now.</Text>
+              ) : null}
             </View>
-            <Text style={styles.actionTitle}>History</Text>
-            <Text style={styles.actionSubtitle}>Review recent activity</Text>
-          </Pressable>
-      </View>
+          </MotiView>
+
+                  {/* Mic / voice */}
+          <MotiView
+            from={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: "timing", duration: 450, delay: 260 }}
+            style={styles.micSection}
+          >
+            <Pressable
+              style={styles.micButton}
+              onPress={() => router.push("/chat")}
+            >
+              <LinearGradient
+                colors={[primaryAccent, "#E08B00"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <Ionicons name="mic" size={30} color="#FFFDF7" />
+            </Pressable>
+            <Text style={styles.micLabel}>Tap to speak with MarketMind</Text>
+          </MotiView>
+
+          {/* Quick actions */}
+          <MotiView
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: "timing", duration: 400, delay: 180 }}
+            style={styles.actionsRow}
+          >
+            <Pressable
+              style={styles.actionCard}
+              onPress={() => router.push("/debts")}
+            >
+              <View style={styles.actionIconWrap}>
+                <Ionicons name="wallet-outline" size={20} color={deepGreen} />
+              </View>
+              <Text style={styles.actionTitle}>Debts</Text>
+              <Text style={styles.actionSubtitle}>Track owed money</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.actionCard}
+              onPress={() => router.push("/history")}
+            >
+              <View style={styles.actionIconWrap}>
+                <Ionicons name="time-outline" size={20} color={deepGreen} />
+              </View>
+              <Text style={styles.actionTitle}>History</Text>
+              <Text style={styles.actionSubtitle}>Review activity</Text>
+            </Pressable>
+          </MotiView>
+
+          
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -304,210 +294,204 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor,
   },
-  container: {
+  scrollContent: {
+    flexGrow: 1,
+  },
+  innerContainer: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingVertical: 16,
+    justifyContent: "space-between",
   },
-  headerCard: {
-    marginBottom: 16,
-    padding: 18,
-    borderRadius: 24,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(27,106,58,0.12)",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
-  },
-  headerContent: {
+  // Header
+  headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  headerTextWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  headerEyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: gold,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 4,
   },
   greeting: {
     fontSize: 24,
     fontWeight: "700",
-    color: textAccent,
+    color: deepGreen,
     marginBottom: 4,
   },
   subheading: {
-    fontSize: 14,
-    color: "#4E6556",
-    maxWidth: 220,
+    fontSize: 13,
+    color: mutedText,
+    maxWidth: 240,
   },
-  pillBadge: {
+  liveBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(245,166,35,0.16)",
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    backgroundColor: "rgba(245,166,35,0.15)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(217,119,6,0.2)",
   },
-  pillText: {
-    color: textAccent,
+  liveBadgeText: {
     fontSize: 12,
     fontWeight: "700",
+    color: deepGreen,
   },
-  summaryCard: {
-    borderRadius: 24,
+  // Hero card
+  heroCard: {
+    borderRadius: 28,
     overflow: "hidden",
-    padding: 18,
     borderWidth: 1,
-    borderColor: "rgba(27,106,58,0.12)",
+    borderColor: "rgba(27,106,58,0.08)",
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
-    marginBottom: 16,
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
-  summaryInner: {
-    position: "relative",
-    zIndex: 1,
+  heroContent: {
+    padding: 22,
   },
-  summaryHeader: {
+  heroHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 18,
   },
-  summaryEyebrow: {
-    fontSize: 12,
+  heroEyebrow: {
+    fontSize: 13,
     fontWeight: "700",
-    color: "#6E7C70",
+    color: mutedText,
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },
-  summaryTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: textAccent,
-  },
-  summaryBadge: {
+  heroBadge: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(245,166,35,0.16)",
+    backgroundColor: "rgba(245,166,35,0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
-  summaryRow: {
+  profitLabel: {
+    fontSize: 14,
+    color: mutedText,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  profitValue: {
+    fontSize: 34,
+    fontWeight: "800",
+    color: deepGreen,
+    letterSpacing: 0.5,
+    marginBottom: 16,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(27,106,58,0.15)",
+    marginBottom: 16,
+  },
+  statsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 10,
+    alignItems: "center",
   },
-  summaryItem: {
+  statColumn: {
     flex: 1,
-    minWidth: 90,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.45)",
-    alignItems: "center",
   },
-  metricIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
-  },
-  summaryLabel: {
+  statLabel: {
     fontSize: 13,
-    color: "#4E6556",
+    color: mutedText,
     marginBottom: 4,
   },
-  summaryValue: {
-    fontSize: 15,
+  statValue: {
+    fontSize: 18,
     fontWeight: "700",
-    color: textAccent,
+    color: deepGreen,
+  },
+  verticalDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: "stretch",
+    backgroundColor: "rgba(27,106,58,0.12)",
+    marginHorizontal: 16,
   },
   errorText: {
-    marginTop: 10,
+    marginTop: 12,
     fontSize: 12,
-    color: "#8A5A00",
+    color: negativeRed,
     textAlign: "center",
   },
-  micArea: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 10,
-  },
-  micButton: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 5,
-  },
-  micInner: {
-    width: 118,
-    height: 118,
-    borderRadius: 59,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.55)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  micLabel: {
-    marginTop: 16,
-    fontSize: 15,
-    fontWeight: "600",
-    color: textAccent,
-  },
-  linksRow: {
+  // Quick actions
+  actionsRow: {
     flexDirection: "row",
-    justifyContent: "center",
-    gap: 10,
-    marginTop: 8,
+    gap: 14,
   },
   actionCard: {
     flex: 1,
-    alignItems: "flex-start",
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.7)",
+    padding: 16,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.65)",
     borderWidth: 1,
-    borderColor: "rgba(27,106,58,0.12)",
+    borderColor: "rgba(27,106,58,0.08)",
     shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
   actionIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: warmGlow,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: 12,
   },
   actionTitle: {
-    color: textAccent,
+    fontSize: 16,
     fontWeight: "700",
-    fontSize: 14,
+    color: deepGreen,
+    marginBottom: 2,
   },
   actionSubtitle: {
-    color: "#6E7C70",
     fontSize: 12,
-    marginTop: 2,
+    color: mutedText,
+  },
+  // Mic
+  micSection: {
+    alignItems: "center",
+  },
+  micButton: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  micLabel: {
+    marginTop: 10,
+    fontSize: 14,
+    fontWeight: "600",
+    color: mutedText,
   },
   negativeValue: {
-    color: "#C2410C",
+    color: negativeRed,
   },
 });

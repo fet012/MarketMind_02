@@ -17,10 +17,14 @@ import {
   View,
 } from "react-native";
 
-const backgroundColor = "#F9F6F1";
+const backgroundColor = "#F7F3EE";
 const textAccent = "#1B6A3A";
+const deepGreen = "#14532D";
+const mutedText = "#5B6E5B";
 const salesColor = "#1B6A3A";
 const expenseColor = "#C2410C";
+const warmGlow = "#FDE9C8";
+const gold = "#D97706";
 
 type Transaction = {
   id: number;
@@ -257,26 +261,44 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <LinearGradient
-        colors={["#FCF8EF", "#F7EFD8", "#F4E6C5"]}
+        colors={["#F7F3EE", "#F0E5D8", "#E7D6C1"]}
         start={{ x: 0.05, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
       <View style={styles.container}>
-        <View style={styles.headerRow}>
+        {/* Header */}
+        <MotiView
+          from={{ opacity: 0, translateY: 12 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: "timing", duration: 350 }}
+          style={styles.headerRow}
+        >
           <Pressable
             onPress={() => router.replace("/dashboard")}
             style={styles.backButton}
           >
-            <Ionicons name="chevron-back" size={20} color={textAccent} />
+            <Ionicons name="chevron-back" size={20} color={deepGreen} />
           </Pressable>
           <Text style={styles.title}>History</Text>
-        </View>
+        </MotiView>
 
-        <Text style={styles.subtitle}>{summaryTitle}</Text>
+        <MotiView
+          from={{ opacity: 0, translateY: 8 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: "timing", duration: 400, delay: 60 }}
+        >
+          <Text style={styles.subtitle}>{summaryTitle}</Text>
+        </MotiView>
 
-        <View style={styles.formCard}>
+        {/* Form */}
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: "timing", duration: 450, delay: 100 }}
+          style={styles.formCard}
+        >
           <Text style={styles.formTitle}>
             {editingId ? "Edit transaction" : "Add transaction"}
           </Text>
@@ -294,7 +316,7 @@ export default function HistoryScreen() {
               <Ionicons
                 name="trending-up-outline"
                 size={14}
-                color={formType === "sale" ? "#FFFDF7" : textAccent}
+                color={formType === "sale" ? "#FFFDF7" : deepGreen}
               />
               <Text
                 style={
@@ -317,7 +339,7 @@ export default function HistoryScreen() {
               <Ionicons
                 name="trending-down-outline"
                 size={14}
-                color={formType === "expense" ? "#FFFDF7" : textAccent}
+                color={formType === "expense" ? "#FFFDF7" : deepGreen}
               />
               <Text
                 style={
@@ -369,7 +391,7 @@ export default function HistoryScreen() {
               </Pressable>
             ) : null}
           </View>
-        </View>
+        </MotiView>
 
         {loading ? (
           <View style={styles.centerState}>
@@ -413,7 +435,7 @@ export default function HistoryScreen() {
                                   : "trending-up-outline"
                               }
                               size={15}
-                              color={textAccent}
+                              color={deepGreen}
                             />
                           </View>
                           <View style={styles.itemCopy}>
@@ -428,6 +450,9 @@ export default function HistoryScreen() {
                       </View>
                       <View style={styles.amountColumn}>
                         <Text
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.6}
                           style={[
                             styles.amount,
                             transaction.type === "expense"
@@ -456,7 +481,7 @@ export default function HistoryScreen() {
                         <Ionicons
                           name="create-outline"
                           size={14}
-                          color={textAccent}
+                          color={deepGreen}
                         />
                         <Text style={styles.actionButtonText}>Edit</Text>
                       </Pressable>
@@ -467,9 +492,11 @@ export default function HistoryScreen() {
                         <Ionicons
                           name="trash-outline"
                           size={14}
-                          color={textAccent}
+                          color="#C2410C"
                         />
-                        <Text style={styles.actionButtonText}>Delete</Text>
+                        <Text style={[styles.actionButtonText, { color: "#C2410C" }]}>
+                          Delete
+                        </Text>
                       </Pressable>
                     </View>
                   </MotiView>
@@ -508,36 +535,41 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(27,106,58,0.12)",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   title: {
     fontSize: 20,
     fontWeight: "700",
-    color: textAccent,
+    color: deepGreen,
     flex: 1,
   },
   subtitle: {
     fontSize: 15,
-    color: "#4E6556",
+    color: mutedText,
     marginBottom: 14,
   },
   formCard: {
-    backgroundColor: "rgba(255,255,255,0.8)",
-    borderRadius: 20,
-    padding: 14,
+    backgroundColor: "rgba(255,255,255,0.82)",
+    borderRadius: 24,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(27,106,58,0.12)",
+    borderColor: "rgba(27,106,58,0.08)",
     marginBottom: 14,
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   formTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: textAccent,
-    marginBottom: 8,
+    color: deepGreen,
+    marginBottom: 10,
   },
   formError: {
     color: "#B45309",
@@ -547,22 +579,22 @@ const styles = StyleSheet.create({
   typeRow: {
     flexDirection: "row",
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   typeChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#E7E0D8",
+    borderColor: "rgba(27,106,58,0.12)",
     backgroundColor: "#FFFDF7",
   },
   activeChip: {
-    backgroundColor: textAccent,
-    borderColor: textAccent,
+    backgroundColor: deepGreen,
+    borderColor: deepGreen,
   },
   activeChipText: {
     color: "#FFFDF7",
@@ -570,17 +602,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   inactiveChipText: {
-    color: textAccent,
+    color: deepGreen,
     fontWeight: "700",
     fontSize: 13,
   },
   input: {
     backgroundColor: "#FFFDF7",
     borderWidth: 1,
-    borderColor: "#EFE2C4",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: "rgba(27,106,58,0.12)",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     marginBottom: 10,
     color: "#1F2A24",
   },
@@ -589,27 +621,34 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   primaryButton: {
-    backgroundColor: textAccent,
+    backgroundColor: deepGreen,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
     flex: 1,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   primaryButtonText: {
     color: "#FFFFFF",
     fontWeight: "700",
+    fontSize: 15,
   },
   secondaryButton: {
-    backgroundColor: "#F2EBDD",
+    backgroundColor: "rgba(27,106,58,0.1)",
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
     alignItems: "center",
   },
   secondaryButtonText: {
-    color: textAccent,
+    color: deepGreen,
     fontWeight: "700",
+    fontSize: 15,
   },
   listContent: {
     gap: 12,
@@ -621,21 +660,23 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: "700",
-    color: textAccent,
+    color: gold,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
     marginTop: 4,
     marginBottom: 2,
   },
   card: {
     backgroundColor: "rgba(255,255,255,0.82)",
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(27,106,58,0.12)",
+    borderColor: "rgba(27,106,58,0.08)",
     shadowColor: "#000",
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    elevation: 3,
   },
   cardTop: {
     flexDirection: "row",
@@ -651,13 +692,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   iconBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
-    backgroundColor: "#F7F0E4",
+    backgroundColor: warmGlow,
   },
   saleBadge: {
     backgroundColor: "#EAF4EC",
@@ -671,29 +712,31 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 15,
     fontWeight: "700",
-    color: textAccent,
+    color: deepGreen,
     marginBottom: 4,
   },
   timestamp: {
     fontSize: 12,
-    color: "#4E6556",
+    color: mutedText,
   },
   amountColumn: {
     alignItems: "flex-end",
+    maxWidth: 130,
   },
   amount: {
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "800",
+    textAlign: "right",
   },
   typeBadge: {
     marginTop: 4,
-    backgroundColor: "#F7F0E4",
+    backgroundColor: warmGlow,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
   },
   typeBadgeText: {
-    color: textAccent,
+    color: deepGreen,
     fontSize: 11,
     fontWeight: "700",
   },
@@ -716,7 +759,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FDECEC",
   },
   actionButtonText: {
-    color: textAccent,
+    color: deepGreen,
     fontWeight: "700",
     fontSize: 12,
   },
@@ -732,11 +775,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   loadingText: {
-    color: textAccent,
+    color: deepGreen,
     fontSize: 16,
   },
   emptyText: {
-    color: "#4E6556",
+    color: mutedText,
     fontSize: 15,
   },
 });
