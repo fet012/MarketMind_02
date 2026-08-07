@@ -7,7 +7,15 @@ import { useRouter } from "expo-router";
 import { MotiView } from "moti";
 import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../config";
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import {
+  RefreshControl,
+  ScrollView,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 const backgroundColor = "#F9F6F1";
 const primaryAccent = "#F5A623";
@@ -27,11 +35,27 @@ type SummaryData = {
 };
 
 export default function DashboardScreen() {
+  const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [summaryError, setSummaryError] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const router = useRouter();
+ const loadSummary = async (userId: string) => {
+      try {
+        setLoadingSummary(true);
+        setSummaryError(false);
+        const response = await axios.get<SummaryData>(
+          `${API_BASE_URL}/summary?userId=${userId}`,
+        );
+        setSummary(response.data);
+      } catch {
+        setSummaryError(true);
+        setSummary({ sales: 0, expenses: 0, profit: 0 });
+      } finally {
+        setLoadingSummary(false);
+      }
+    };
 
   useEffect(() => {
     const loadUser = async () => {
@@ -58,25 +82,18 @@ export default function DashboardScreen() {
       }
     };
 
-    const loadSummary = async (userId: string) => {
-      try {
-        setLoadingSummary(true);
-        setSummaryError(false);
-        const response = await axios.get<SummaryData>(
-          `${API_BASE_URL}/summary?userId=${userId}`,
-        );
-        setSummary(response.data);
-      } catch {
-        setSummaryError(true);
-        setSummary({ sales: 0, expenses: 0, profit: 0 });
-      } finally {
-        setLoadingSummary(false);
-      }
-    };
+   
 
     loadUser();
   }, [router]);
 
+
+  const onRefresh = async () => {
+  if (!user?.userId) return;
+  setRefreshing(true);
+  await loadSummary(user.userId);
+  setRefreshing(false);
+};
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
 
@@ -100,7 +117,13 @@ export default function DashboardScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        scrollEnabled={false}
+      >
         <MotiView
           from={{ opacity: 0, translateY: 16 }}
           animate={{ opacity: 1, translateY: 0 }}
@@ -270,8 +293,8 @@ export default function DashboardScreen() {
             <Text style={styles.actionTitle}>History</Text>
             <Text style={styles.actionSubtitle}>Review recent activity</Text>
           </Pressable>
-        </View>
       </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

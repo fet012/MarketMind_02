@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -25,7 +26,10 @@ export default function OnboardingScreen() {
 
   useEffect(() => {
     const checkExistingUser = async () => {
-      const stored = await AsyncStorage.getItem("marketmind_user");
+      const [stored] = await Promise.all([
+        AsyncStorage.getItem("marketmind_user"),
+        new Promise((resolve) => setTimeout(resolve, 1000)),
+      ]);
 
       if (stored) {
         try {
@@ -59,7 +63,7 @@ export default function OnboardingScreen() {
 
     router.push("/dashboard");
   };
- if (checkingUser) {
+if (checkingUser) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.splashContainer}>
@@ -67,6 +71,11 @@ export default function OnboardingScreen() {
             <Text style={styles.logoText}>MM</Text>
           </View>
           <Text style={styles.title}>MarketMind</Text>
+          <ActivityIndicator
+            size="small"
+            color={textAccent}
+            style={{ marginTop: 20 }}
+          />
         </View>
       </SafeAreaView>
     );
