@@ -139,6 +139,7 @@ export default function ChatScreen() {
       "is",
       "are",
       "?",
+      "wetin"
     ];
 
     return questionMarkers.some((marker) => normalized.includes(marker));
@@ -383,7 +384,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 20,
     marginHorizontal: 12,
     marginTop: 8,
     borderRadius: 24,

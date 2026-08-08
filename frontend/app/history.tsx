@@ -178,7 +178,7 @@ export default function HistoryScreen() {
 
     const parsedAmount = Number(formAmount);
     if (Number.isNaN(parsedAmount) || parsedAmount < 0) {
-      setFormError("Amount must be a valid non-negative number.");
+      setFormError("Please remove the comma.");
       return;
     }
 
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingVertical: 22,
   },
   headerRow: {
     flexDirection: "row",
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   formCard: {
-    backgroundColor: "rgba(255,255,255,0.82)",
+    backgroundColor: "#fffff",
     borderRadius: 24,
     padding: 16,
     borderWidth: 1,
@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   card: {
-    backgroundColor: "rgba(255,255,255,0.82)",
+    backgroundColor: " #fff)",
     borderRadius: 20,
     padding: 14,
     borderWidth: 1,

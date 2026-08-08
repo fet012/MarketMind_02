@@ -164,7 +164,7 @@ export default function DashboardScreen() {
             style={styles.heroCard}
           >
             <LinearGradient
-              colors={["rgba(255,255,255,0.9)", "rgba(250,244,238,0.7)"]}
+              colors={["rgba(255,255,255,0.9)", "rgba(255,255,255,0.9)"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
@@ -247,7 +247,8 @@ export default function DashboardScreen() {
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
-              <Ionicons name="mic" size={30} color="#FFFDF7" />
+              
+              <Ionicons name="mic" size={50} color="#FFFDF7" />
             </Pressable>
             <Text style={styles.micLabel}>Tap to speak with MarketMind</Text>
           </MotiView>
@@ -300,7 +301,7 @@ const styles = StyleSheet.create({
   innerContainer: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 22,
     justifyContent: "space-between",
   },
   // Header
@@ -440,7 +441,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.65)",
+    backgroundColor: "rgba(255,255,255,0.95)",
     borderWidth: 1,
     borderColor: "rgba(27,106,58,0.08)",
     shadowColor: "#000",
@@ -495,3 +496,4 @@ const styles = StyleSheet.create({
     color: negativeRed,
   },
 });
+

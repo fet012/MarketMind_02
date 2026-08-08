@@ -211,7 +211,7 @@ Respond with ONLY valid JSON, no other text, in this exact format:
 If the message is genuinely not a transaction (a question, greeting, or unrelated statement), respond with:
 {"type": null, "item": null, "amount": null, "reply": "short natural-language confirmation"}
 
-Trader's message: "${message}"
+Trader's message: "${question}"
 `;
 
   const result = await model.generateContent(prompt);

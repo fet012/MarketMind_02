@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 22,
     paddingBottom: 8,
   },
 
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   debtCard: {
-    backgroundColor: "rgba(255,255,255,0.82)",
+    backgroundColor: "#ffff)",
     padding: 16,
     borderRadius: 20,
     borderWidth: 1,
