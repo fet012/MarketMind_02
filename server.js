@@ -205,7 +205,7 @@ Respond with ONLY valid JSON, no other text, in this exact format:
   "type": "sale" or "expense",
   "item": "item name",
   "amount": number,
-  "reply": "short natural-language confirmation"
+  "answer": "short natural-language confirmation"
 }
 
 If the message is genuinely not a transaction (a question, greeting, or unrelated statement), respond with:
